@@ -69,6 +69,8 @@ Rules:
 - A price belongs to the item it is printed next to. A "from" price over a group of items ("Desde $129", "A partir de $90") is not the price of any one of them: leave those items' price null and mention the starting price in the description.
 - Pages written to be found by location (one per neighbourhood or city, with similar copy) tell you where the business wants to be found, not who its customers are. Use them for service area and delivery facts. Do not turn each one into an audience segment.
 - "languages" lists every language the site publishes in, including ones you were not shown.
+- Describe what an item contains, not what it lacks. Write "sin queso" or "sin carne" only when the page says so; an ingredient missing from a list is not a statement that the item comes without it.
+- Every field describes the business. Never copy these rules, or remarks about how you read the site, into the profile. "rules.constraints" is for limits on what this business may say in its marketing (legal, category, or stated by the business itself), not for general good practice.
 - For "register", look at how the site addresses the reader: tú forms ("pide", "tu pedido"), usted forms ("pida", "su pedido"), or vos forms ("pedí", "tu pedido" with voseo verbs).
 
 ${UNTRUSTED_NOTICE}`;
@@ -78,6 +80,10 @@ const CRITIQUE_INSTRUCTIONS = `You audit a brand profile against the website pag
 List every factual statement in the profile that the pages do not support: product or service names, prices, promotions, numbers, dates, locations, awards, guarantees, and claims about results.
 
 Do not flag the profile's reading of tone, audience, pains, buying triggers or objections unless the pages contradict it. Those are inferences by design.
+
+Flag a description that says an item comes without an ingredient ("sin queso", "sin papas") when no page says so.
+
+Flag any entry in "rules" that is an instruction about reading websites or writing profiles and not a limit on this business's marketing.
 
 Check each offer's price against the page: it must be printed for that item, not for a neighbouring item and not as a "from" price over a group. Flag a price that is attached to the wrong item.
 

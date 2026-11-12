@@ -116,7 +116,8 @@ export const LIMITS = {
   listItems: 12,
   shortText: 160,
   longText: 800,
-  offers: 30,
+  // A restaurant menu with drinks reached 30 on the first real site.
+  offers: 60,
 } as const;
 
 /** One finding from the critic model. */
