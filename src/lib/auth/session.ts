@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { cache } from "react";
 import { systemDb } from "@/db/client";
 import { parseAllowlist, resolveAccess, type Access } from "./access";
 import { isNeonAuthConfigured, neonAuth } from "./neon";
@@ -26,12 +27,14 @@ export type RequestAccess = Access | { kind: "signed_out" };
  * Who is making this request and what they may reach. The single seam for
  * authentication; everything else asks this module.
  *
+ * Memoised per request, so a page that asks in several places looks once.
+ *
  * - Neon Auth when its two settings are present. This is the production path.
  * - `AUTH_MODE=dev`: every request acts as one tenant from the environment.
  *   Refuses to run in a production build, where it would hand every visitor
  *   the same tenant.
  */
-export async function getAccess(): Promise<RequestAccess> {
+export const getAccess = cache(async function getAccess(): Promise<RequestAccess> {
   if (isNeonAuthConfigured()) {
     // Reading the session needs the request's cookies. Wait for a real request
     // first: during the build's prerender there is none, and the auth SDK
@@ -57,7 +60,7 @@ export async function getAccess(): Promise<RequestAccess> {
     return { kind: "ok", tenantId, userId: "dev-user", email: "dev@localhost" };
   }
   throw new AuthNotConfiguredError();
-}
+});
 
 /** The session when the request may act on a tenant, otherwise null. */
 export async function getSession(): Promise<Session | null> {

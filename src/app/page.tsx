@@ -20,27 +20,48 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl px-5 pb-12 pt-10">
           <h1 className="display max-w-2xl text-5xl sm:text-7xl">{es.home.title}</h1>
           <p className="mt-4 max-w-xl text-lg">{es.home.lead}</p>
-          <NewBrandForm />
+          <Suspense fallback={null}>
+            <BrandForm />
+          </Suspense>
         </div>
       </section>
 
       <section className="mx-auto max-w-4xl px-5 py-12">
-        <h2 className="display text-3xl">{es.home.listTitle}</h2>
         <Suspense fallback={<div className="mt-6 h-24 rounded bg-borde/50" aria-hidden />}>
-          <BrandList />
+          <Workspace />
         </Suspense>
       </section>
     </main>
   );
 }
 
-async function BrandList() {
+/**
+ * The form appears only when the person may act on a workspace; otherwise
+ * the section below says why (unconfirmed, uninvited). Showing it anyway
+ * offers a submission the server would refuse.
+ */
+async function BrandForm() {
+  await connection();
+  const access = await getAccessOrSetup();
+  return access.kind === "ok" ? <NewBrandForm /> : null;
+}
+
+async function Workspace() {
   await connection();
   const access = await getAccessOrSetup();
   if (access.kind === "setup") return <SetupNotice />;
   if (access.kind === "signed_out") redirect("/auth/sign-in");
   if (access.kind !== "ok") return <AccessNotice kind={access.kind} email={access.email} />;
   const brands = await listBrands(access.tenantId);
+  return (
+    <>
+      <h2 className="display text-3xl">{es.home.listTitle}</h2>
+      <BrandItems brands={brands} />
+    </>
+  );
+}
+
+function BrandItems({ brands }: { brands: Awaited<ReturnType<typeof listBrands>> }) {
 
   if (brands.length === 0) {
     return <p className="mt-6 max-w-prose text-tinta-suave">{es.home.empty}</p>;

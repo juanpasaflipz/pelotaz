@@ -24,7 +24,8 @@ class LimitError extends Error {
 
 async function requireSession() {
   const session = await getSession();
-  if (!session) throw new Error("Unauthorized");
+  // Signed out, unconfirmed or uninvited: the home page explains which.
+  if (!session) redirect("/");
   return session;
 }
 
