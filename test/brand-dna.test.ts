@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { brandDna, brands, crawlPages } from "@/db/schema";
 import { withTenant, type Db } from "@/db/tenant";
-import { checkPrices, renderPages } from "@/lib/brand-dna/build";
+import { buildBrandDna, checkPrices, renderPages } from "@/lib/brand-dna/build";
 import {
   latestBrandDna,
   onboardBrand,
@@ -303,6 +303,22 @@ describe("saveProfileEdit", () => {
 const ROUTES_PAGE = extractPage("<html><body></body></html>", `${ORIGIN}/x`, 200);
 
 describe("prompt building", () => {
+  it("tells the model when it is reading one language of a multilingual site", async () => {
+    const crawl = await crawlSite(createFixtureFetcher(), ORIGIN);
+    const llm = faithfulLlm();
+    await buildBrandDna(llm, { ...crawl, siteLanguages: ["en", "es"], languageRead: "es" }, {
+      goal: "sales",
+      country: "MX",
+      locale: "es-MX",
+    });
+    expect(llm.calls[0].prompt).toContain("The site publishes in: en, es.");
+    expect(llm.calls[0].prompt).toContain("also exists in: en");
+
+    const single = faithfulLlm();
+    await buildBrandDna(single, crawl, { goal: "sales", country: "MX", locale: "es-MX" });
+    expect(single.calls[0].prompt).not.toContain("The site publishes in");
+  });
+
   it("cuts the least informative pages first when over budget", async () => {
     const crawl = await crawlSite(createFixtureFetcher(), ORIGIN);
     const rendered = renderPages(crawl.pages, 400);

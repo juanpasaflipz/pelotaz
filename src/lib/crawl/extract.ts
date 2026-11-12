@@ -167,10 +167,21 @@ export function extractPage(html: string, url: string, status: number): CrawledP
   $('[aria-hidden="true"], [hidden], .cookie, .cookies, #cookie-banner').remove();
   const root = $("main").length ? $("main").first() : $("body");
   root.find("br").replaceWith("\n");
-  // Two buttons or links side by side have no whitespace between them in the
-  // markup; without this their labels fuse into one word.
-  root.find("a, button").each((_, el) => {
-    if (el.next?.type === "tag") $(el).after(" ");
+  // Labels that sit side by side in the markup have no whitespace between
+  // them, so their text fuses: "Ordenar ahoraVer el menú", "RefrescoConsulta
+  // sabores", "nuevoTaquitos dorados". Separate them at element boundaries
+  // only, so a word like "WhatsApp" inside ordinary text is never split.
+  root.find("a, button, span, strong, em, b, small, label").each((_, el) => {
+    const next = el.next;
+    if (!next) return;
+    if (next.type === "tag") {
+      $(el).after(" ");
+    } else if (next.type === "text") {
+      const before = $(el).text().slice(-1);
+      const after = next.data.charAt(0);
+      // A badge glued to a sentence: lowercase or digit, then a capital letter.
+      if (/[\p{Ll}\d]/u.test(before) && /\p{Lu}/u.test(after)) $(el).after(" ");
+    }
   });
   root.find("p, li, h1, h2, h3, h4, h5, h6, tr, div, section, article").each((_, el) => {
     $(el).append("\n");

@@ -1,4 +1,4 @@
-import { discoverUrls, loadRobots, normalizeUrl, siteKey } from "./discover";
+import { discoverUrls, loadRobots, normalizeUrl, pathLanguage, siteKey } from "./discover";
 import { isAllowed } from "./robots";
 import { extractFonts, extractPage, extractPalette } from "./extract";
 import type { CrawlFailure, CrawlResult, CrawledPage, PageFetcher, SiteVisuals } from "./types";
@@ -67,7 +67,14 @@ export async function crawlSite(
     if (!isAllowed(rules, landed.pathname)) throw new CrawlError("blocked_by_robots");
   }
 
-  const urls = await discoverUrls(fetcher, home.url, home.links, rules, maxPages, options.language);
+  const { urls, languages } = await discoverUrls(
+    fetcher,
+    home.url,
+    home.links,
+    rules,
+    maxPages,
+    options.language,
+  );
 
   const homePath = new URL(home.url).pathname;
   const remaining = urls.filter((url) => new URL(url).pathname !== homePath).slice(0, maxPages - 1);
@@ -103,7 +110,17 @@ export async function crawlSite(
 
   const visuals = await collectVisuals(fetcher, home, pages, maxStylesheets);
   const totalTextLength = pages.reduce((sum, page) => sum + page.text.length, 0);
-  return { startUrl: home.url, pages, visuals, failures, totalTextLength };
+  const read = new Set(pages.map((page) => pathLanguage(new URL(page.url).pathname)));
+  read.delete(null);
+  return {
+    startUrl: home.url,
+    pages,
+    visuals,
+    failures,
+    totalTextLength,
+    siteLanguages: languages,
+    languageRead: read.size === 1 ? ([...read][0] ?? null) : null,
+  };
 }
 
 async function collectVisuals(

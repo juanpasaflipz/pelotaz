@@ -65,6 +65,10 @@ Rules:
 - Copy prices exactly as written, including the currency symbol. If no price is shown for an offer, its price is null.
 - Voice, audience segments, pains, buying triggers and objections are your reading of the site. Infer them from how the site writes and what it emphasises, and keep each item short.
 - Write the profile in the language the site is written in.
+- List every product or service the pages give a price for, including drinks, sides and desserts.
+- A price belongs to the item it is printed next to. A "from" price over a group of items ("Desde $129", "A partir de $90") is not the price of any one of them: leave those items' price null and mention the starting price in the description.
+- Pages written to be found by location (one per neighbourhood or city, with similar copy) tell you where the business wants to be found, not who its customers are. Use them for service area and delivery facts. Do not turn each one into an audience segment.
+- "languages" lists every language the site publishes in, including ones you were not shown.
 - For "register", look at how the site addresses the reader: tú forms ("pide", "tu pedido"), usted forms ("pida", "su pedido"), or vos forms ("pedí", "tu pedido" with voseo verbs).
 
 ${UNTRUSTED_NOTICE}`;
@@ -75,13 +79,25 @@ List every factual statement in the profile that the pages do not support: produ
 
 Do not flag the profile's reading of tone, audience, pains, buying triggers or objections unless the pages contradict it. Those are inferences by design.
 
+Check each offer's price against the page: it must be printed for that item, not for a neighbouring item and not as a "from" price over a group. Flag a price that is attached to the wrong item.
+
 Return an empty list when everything factual is supported. Do not flag something only because it is phrased differently from the page.
 
 ${UNTRUSTED_NOTICE}`;
 
+/** Tell the model when it is looking at one language of a multilingual site. */
+function languageNote(crawl: CrawlResult): string[] {
+  if (crawl.siteLanguages.length < 2) return [];
+  const others = crawl.siteLanguages.filter((language) => language !== crawl.languageRead);
+  return [
+    `The site publishes in: ${crawl.siteLanguages.join(", ")}. You are shown only the ${crawl.languageRead ?? "main"} pages; the same content also exists in: ${others.join(", ")}.`,
+  ];
+}
+
 function buildPrompt(crawl: CrawlResult, context: BrandContext): string {
   return [
     `Website: ${crawl.startUrl}`,
+    ...languageNote(crawl),
     `Market: ${context.country}. Expected content locale: ${context.locale}.`,
     `The owner's marketing goal: ${context.goal}.`,
     "",

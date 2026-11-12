@@ -66,4 +66,8 @@ export interface CrawlResult {
   visuals: SiteVisuals;
   failures: CrawlFailure[];
   totalTextLength: number;
+  /** Languages the site publishes in (path prefixes such as /es, /en). */
+  siteLanguages: string[];
+  /** The one that was read, when the site has several. */
+  languageRead: string | null;
 }

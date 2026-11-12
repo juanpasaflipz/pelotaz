@@ -42,6 +42,29 @@ describe("crawlSite", () => {
     expect(result.pages.some((p) => p.text.includes("Plataforma de reservas"))).toBe(false);
   });
 
+  it("reports no languages for a site without language prefixes", async () => {
+    const result = await crawlSite(createFixtureFetcher(), ORIGIN, { language: "es" });
+    expect(result.siteLanguages).toEqual([]);
+    expect(result.languageRead).toBeNull();
+  });
+
+  it("reports the languages of a bilingual site and which one it read", async () => {
+    const html = (body: string) => ({ contentType: "text/html", body: `<html><body><main>${body}</main></body></html>` });
+    const nav = `<a href="/es/menu">Menú</a><a href="/es/historia">Historia</a><a href="/es/contacto">Contacto</a><a href="/en">English</a><a href="/en/menu">Menu</a>`;
+    const fetcher = createFixtureFetcher({
+      "/es": html(`<h1>Hola</h1>${nav}`),
+      "/es/menu": html("<h1>Menú</h1>"),
+      "/es/historia": html("<h1>Historia</h1>"),
+      "/es/contacto": html("<h1>Contacto</h1>"),
+      "/en": html("<h1>Hello</h1>"),
+      "/en/menu": html("<h1>Menu</h1>"),
+    });
+    const result = await crawlSite(fetcher, `${ORIGIN}/es`, { language: "es" });
+    expect(result.siteLanguages).toEqual(["en", "es"]);
+    expect(result.languageRead).toBe("es");
+    expect(fetcher.requested.some((url) => new URL(url).pathname.startsWith("/en"))).toBe(false);
+  });
+
   it("respects the page limit and still starts with the home page", async () => {
     const result = await crawlSite(createFixtureFetcher(), ORIGIN, { maxPages: 3 });
     expect(paths(result.pages.map((p) => p.url))).toEqual(["/", "/nosotros", "/menu"]);
@@ -150,6 +173,22 @@ describe("extraction details found on real sites", () => {
     expect(page.text).toContain("Ordenar ahora Ver el menú");
     // A link inside a sentence is left alone.
     expect(page.text).toContain("Con papas.");
+  });
+
+  it("separates fused labels without splitting ordinary words", () => {
+    const page = extractPage(
+      `<main>
+         <div><span>Refresco</span><span>Consulta sabores.</span></div>
+         <p><span>nuevo</span>Taquitos dorados rellenos de queso.</p>
+         <p>Pide por WhatsApp o por <strong>DiDi</strong>Food. Agua de Fresa-<span>Limón</span>.</p>
+       </main>`,
+      `${ORIGIN}/`,
+      200,
+    );
+    expect(page.text).toContain("Refresco Consulta sabores.");
+    expect(page.text).toContain("nuevo Taquitos dorados");
+    expect(page.text).toContain("WhatsApp");
+    expect(page.text).toContain("Fresa-Limón.");
   });
 
   it("uses the original file behind an image optimiser URL", () => {

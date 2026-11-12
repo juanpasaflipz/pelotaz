@@ -172,6 +172,12 @@ export async function loadRobots(fetcher: PageFetcher, origin: string): Promise<
   return NO_RULES;
 }
 
+export interface Discovery {
+  urls: string[];
+  /** Languages the site publishes in, from its path prefixes. Empty when it does not use them. */
+  languages: string[];
+}
+
 /**
  * Decide which pages to read, using sitemaps and the home page's own links as
  * candidates. `homeLinks` come from the already-fetched home page so it is not
@@ -184,12 +190,28 @@ export async function discoverUrls(
   rules: RobotsRules,
   limit: number,
   language?: string,
-): Promise<string[]> {
+): Promise<Discovery> {
   const origin = new URL(startUrl).origin;
+  const site = siteKey(startUrl);
   const sitemapUrls = rules.sitemaps.length > 0 ? rules.sitemaps : [`${origin}/sitemap.xml`];
-  const fromSitemaps = await readSitemaps(fetcher, sitemapUrls, siteKey(startUrl));
+  const fromSitemaps = await readSitemaps(fetcher, sitemapUrls, site);
+  const candidates = [startUrl, ...homeLinks, ...fromSitemaps];
+
+  const languages = new Set<string>();
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(candidate);
+      const found = siteKey(url) === site ? pathLanguage(url.pathname) : null;
+      if (found) languages.add(found);
+    } catch {
+      // Not a URL; prioritize() drops it too.
+    }
+  }
 
   // Home links first: what the site chooses to put in its navigation is a
   // better signal of importance than sitemap order.
-  return prioritize([startUrl, ...homeLinks, ...fromSitemaps], startUrl, rules, limit, language);
+  return {
+    urls: prioritize(candidates, startUrl, rules, limit, language),
+    languages: [...languages].sort(),
+  };
 }

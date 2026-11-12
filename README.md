@@ -115,7 +115,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 147 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 151 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Credit ledger**: balance tracking, overdraft aborting a transaction, append-only, idempotency keys.

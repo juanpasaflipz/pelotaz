@@ -57,6 +57,7 @@ async function main() {
     for (const failure of crawl.failures) console.log(`  skipped  ${failure.url}  (${failure.reason})`);
     console.log("");
     line("Total text", `${crawl.totalTextLength} chars`);
+    line("Site languages", crawl.siteLanguages.join(", ") || "(no language prefixes)");
     line("Palette", crawl.visuals.palette.join(" ") || "(none found)");
     line("Fonts", crawl.visuals.fonts.join(", ") || "(none found)");
     line("Logo", crawl.visuals.logoUrl ?? "(none found)");
