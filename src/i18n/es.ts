@@ -169,6 +169,7 @@ export const es = {
       not_invited: "Por ahora el registro es solo por invitación. Escríbenos para pedir acceso.",
       unavailable: "El inicio de sesión no está disponible en este momento. Intenta más tarde.",
       invalid_email: "Ese correo no se ve bien escrito.",
+      rate_limited: "Demasiados intentos seguidos. Espera unos minutos e intenta de nuevo.",
       email_not_verified: "Confirma tu correo antes de entrar. Te enviamos un enlace cuando creaste la cuenta.",
       domain_not_trusted: "Este sitio todavía no está autorizado para iniciar sesión. Es un ajuste pendiente de nuestro lado.",
     },

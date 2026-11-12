@@ -2,6 +2,7 @@
 export interface ProviderError {
   code?: string;
   status?: number;
+  message?: string;
 }
 
 export type AuthError =
@@ -13,9 +14,16 @@ export type AuthError =
   | "sign_up_failed"
   | "not_invited"
   | "domain_not_trusted"
+  | "rate_limited"
   | "unavailable";
 
-const ORIGIN_CODES = new Set(["INVALID_ORIGIN", "MISSING_ORIGIN", "MISSING_OR_NULL_ORIGIN"]);
+/**
+ * The Neon Auth SDK rewrites the provider's codes into its own lowercase set
+ * ("invalid_credentials", "weak_password") and passes through any it does not
+ * know. Compare case-insensitively and accept both spellings, so a change in
+ * that mapping does not silently turn every failure into "unavailable".
+ */
+const is = (code: string, ...names: string[]) => names.includes(code);
 
 /**
  * Turn a provider failure into the message to show.
@@ -27,22 +35,43 @@ const ORIGIN_CODES = new Set(["INVALID_ORIGIN", "MISSING_ORIGIN", "MISSING_OR_NU
  * that was never the problem.
  */
 export function classifyAuthError(action: "sign-in" | "sign-up", error: ProviderError): AuthError {
-  const code = error.code ?? "";
-  if (ORIGIN_CODES.has(code)) return "domain_not_trusted";
+  const code = (error.code ?? "").toLowerCase();
+  const message = (error.message ?? "").toLowerCase();
+
+  // An untrusted origin has no code of its own in the SDK's set; it arrives
+  // as a generic 400/403 whose message names the origin.
+  if (code.includes("origin") || message.includes("origin")) return "domain_not_trusted";
+  if (error.status === 429 || code.includes("rate_limit")) return "rate_limited";
 
   if (action === "sign-in") {
-    if (code === "EMAIL_NOT_VERIFIED") return "email_not_verified";
+    if (is(code, "email_not_confirmed", "email_not_verified")) return "email_not_verified";
     // One message for a wrong address and a wrong password, so the form does
-    // not reveal which addresses have accounts.
-    if (code === "INVALID_EMAIL_OR_PASSWORD" || code === "INVALID_EMAIL" || code === "INVALID_PASSWORD") {
+    // not reveal which addresses have accounts. A password under the minimum
+    // length is reported as "weak" by the provider; at sign-in that simply
+    // means it is not this account's password.
+    if (
+      is(
+        code,
+        "invalid_credentials",
+        "invalid_email_or_password",
+        "invalid_password",
+        "invalid_email",
+        "email_address_invalid",
+        "user_not_found",
+        "identity_not_found",
+        "weak_password",
+        "password_too_short",
+        "password_too_long",
+      )
+    ) {
       return "bad_credentials";
     }
     return error.status === 401 ? "bad_credentials" : "unavailable";
   }
 
-  if (code.startsWith("USER_ALREADY_EXISTS")) return "sign_up_failed";
-  if (code === "PASSWORD_TOO_SHORT" || code === "PASSWORD_TOO_LONG") return "weak_password";
-  if (code === "INVALID_EMAIL") return "invalid_email";
+  if (code.startsWith("user_already_exists") || is(code, "email_exists")) return "sign_up_failed";
+  if (is(code, "weak_password", "password_too_short", "password_too_long")) return "weak_password";
+  if (is(code, "email_address_invalid", "invalid_email")) return "invalid_email";
   return "unavailable";
 }
 

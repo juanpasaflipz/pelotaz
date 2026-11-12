@@ -14,7 +14,13 @@ function explain(action: "sign-in" | "sign-up", error: ProviderError): AuthError
   const kind = classifyAuthError(action, error);
   // Code and status only: never the address or anything the person typed.
   if (isOperatorProblem(kind)) {
-    console.error("auth provider error", { action, code: error.code, status: error.status });
+    // The provider's message describes the failure, not the person; keep it short.
+    console.error("auth provider error", {
+      action,
+      code: error.code,
+      status: error.status,
+      message: error.message?.slice(0, 200),
+    });
   }
   return kind;
 }

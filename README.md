@@ -93,7 +93,7 @@ Sign-in is Neon Auth, which is Better Auth run by Neon: users and sessions are s
 - **The address must be confirmed.** Turn on "Verify email at signup" in the Neon Console. An unconfirmed account is held at a "confirma tu correo" screen and gets no workspace.
 - **`SIGNUP_ALLOWLIST`, when set, limits who gets a workspace** to listed addresses or domains. Confirmation is checked first, so nobody can claim an invited address they do not control.
 
-**Every domain the app runs on must be a trusted domain in Neon Auth** (Console, Auth, Configuration, Domains): for example `https://www.pelotaz.com` and `https://pelotaz.com`, with the protocol and no trailing slash. Localhost is trusted by default, so sign-in works locally and then fails on a new production domain until this is done. The forms say so when it happens, and the server log records `INVALID_ORIGIN`.
+**Every domain the app runs on must be a trusted domain in Neon Auth** (Console, Auth, Configuration, Domains): for example `https://www.pelotaz.com` and `https://pelotaz.com`, with the protocol and no trailing slash. Localhost is trusted by default, so sign-in works locally and then fails on a new production domain until this is done. The forms say so when it happens, and the server log records the provider's reply.
 
 `src/proxy.ts` redirects signed-out visitors to the sign-in page. It is a convenience: every page, action and route handler checks the session itself.
 
@@ -131,7 +131,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 174 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 177 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.

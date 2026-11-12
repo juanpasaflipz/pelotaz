@@ -56,36 +56,57 @@ describe("allowlist", () => {
 });
 
 describe("auth error messages", () => {
+  // Codes as the Neon Auth SDK reports them: lowercase, rewritten from the provider's.
   it("blames the credentials only when the provider does", () => {
-    expect(classifyAuthError("sign-in", { code: "INVALID_EMAIL_OR_PASSWORD", status: 401 })).toBe("bad_credentials");
+    expect(classifyAuthError("sign-in", { code: "invalid_credentials", status: 401 })).toBe("bad_credentials");
+    expect(classifyAuthError("sign-in", { code: "user_not_found", status: 404 })).toBe("bad_credentials");
     expect(classifyAuthError("sign-in", { status: 401 })).toBe("bad_credentials");
   });
 
+  it("treats a too-short password at sign-in as a wrong password", () => {
+    // Seen on the live site: sign-in answered { code: "weak_password", status: 400 }.
+    expect(classifyAuthError("sign-in", { code: "weak_password", status: 400 })).toBe("bad_credentials");
+    expect(classifyAuthError("sign-up", { code: "weak_password", status: 400 })).toBe("weak_password");
+  });
+
   it("reports an untrusted site domain as our problem, on both forms", () => {
-    // What a new production domain gets until it is added to the provider.
+    // The SDK has no code for this; it shows up as a generic 403 with the reason in the message.
     for (const action of ["sign-in", "sign-up"] as const) {
-      const kind = classifyAuthError(action, { code: "INVALID_ORIGIN", status: 403 });
+      const kind = classifyAuthError(action, { code: "feature_not_supported", status: 403, message: "Invalid origin" });
       expect(kind).toBe("domain_not_trusted");
       expect(isOperatorProblem(kind)).toBe(true);
     }
-    expect(classifyAuthError("sign-up", { code: "MISSING_ORIGIN", status: 400 })).toBe("domain_not_trusted");
+    expect(classifyAuthError("sign-up", { code: "INVALID_ORIGIN", status: 403 })).toBe("domain_not_trusted");
+    expect(classifyAuthError("sign-up", { code: "validation_failed", status: 400, message: "Missing origin" })).toBe("domain_not_trusted");
   });
 
   it("does not call an outage a wrong password", () => {
-    expect(classifyAuthError("sign-in", { code: "INTERNAL_ERROR", status: 500 })).toBe("unavailable");
+    expect(classifyAuthError("sign-in", { code: "internal_error", status: 500 })).toBe("unavailable");
+    expect(classifyAuthError("sign-in", { code: "feature_not_supported", status: 403, message: "Forbidden" })).toBe("unavailable");
     expect(classifyAuthError("sign-in", {})).toBe("unavailable");
     expect(classifyAuthError("sign-up", { status: 503 })).toBe("unavailable");
   });
 
   it("tells an unconfirmed account to confirm, and an existing one to sign in", () => {
+    expect(classifyAuthError("sign-in", { code: "email_not_confirmed", status: 403 })).toBe("email_not_verified");
+    expect(classifyAuthError("sign-up", { code: "user_already_exists", status: 422 })).toBe("sign_up_failed");
+    expect(classifyAuthError("sign-up", { code: "email_address_invalid", status: 400 })).toBe("invalid_email");
+  });
+
+  it("accepts the provider's original spelling too", () => {
+    expect(classifyAuthError("sign-in", { code: "INVALID_EMAIL_OR_PASSWORD", status: 401 })).toBe("bad_credentials");
     expect(classifyAuthError("sign-in", { code: "EMAIL_NOT_VERIFIED", status: 403 })).toBe("email_not_verified");
     expect(classifyAuthError("sign-up", { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", status: 422 })).toBe("sign_up_failed");
-    expect(classifyAuthError("sign-up", { code: "PASSWORD_TOO_SHORT", status: 400 })).toBe("weak_password");
+  });
+
+  it("recognises rate limiting", () => {
+    expect(classifyAuthError("sign-in", { code: "over_request_rate_limit", status: 429 })).toBe("rate_limited");
   });
 
   it("keeps user mistakes out of the error log", () => {
     expect(isOperatorProblem("bad_credentials")).toBe(false);
     expect(isOperatorProblem("sign_up_failed")).toBe(false);
+    expect(isOperatorProblem("rate_limited")).toBe(false);
   });
 });
 
