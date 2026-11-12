@@ -2,19 +2,21 @@
 
 import { redirect } from "next/navigation";
 import { isAllowed, parseAllowlist } from "@/lib/auth/access";
+import { classifyAuthError, isOperatorProblem, type AuthError, type ProviderError } from "@/lib/auth/errors";
 import { isNeonAuthConfigured, neonAuth } from "@/lib/auth/neon";
-
-export type AuthError =
-  | "missing"
-  | "weak_password"
-  | "bad_credentials"
-  | "sign_up_failed"
-  | "not_invited"
-  | "unavailable";
 
 export interface AuthFormState {
   error: AuthError | null;
   email: string;
+}
+
+function explain(action: "sign-in" | "sign-up", error: ProviderError): AuthError {
+  const kind = classifyAuthError(action, error);
+  // Code and status only: never the address or anything the person typed.
+  if (isOperatorProblem(kind)) {
+    console.error("auth provider error", { action, code: error.code, status: error.status });
+  }
+  return kind;
 }
 
 const field = (formData: FormData, name: string, max: number) =>
@@ -27,9 +29,7 @@ export async function signIn(_previous: AuthFormState, formData: FormData): Prom
   if (!isNeonAuthConfigured()) return { error: "unavailable", email };
 
   const { error } = await neonAuth().signIn.email({ email, password });
-  // One message for every failure: saying which part was wrong tells a
-  // stranger whether an address has an account.
-  if (error) return { error: "bad_credentials", email };
+  if (error) return { error: explain("sign-in", error), email };
   redirect("/");
 }
 
@@ -47,7 +47,7 @@ export async function signUp(_previous: AuthFormState, formData: FormData): Prom
   }
 
   const { error } = await neonAuth().signUp.email({ email, password, name: name || email });
-  if (error) return { error: "sign_up_failed", email };
+  if (error) return { error: explain("sign-up", error), email };
   // Signed in already, or sent to sign in after confirming the address,
   // depending on the project's email verification setting.
   redirect("/");

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { brands, jobs, memberships, tenants } from "@/db/schema";
 import { withTenant, type Db } from "@/db/tenant";
 import { isAllowed, parseAllowlist, resolveAccess, type Identity } from "@/lib/auth/access";
+import { classifyAuthError, isOperatorProblem } from "@/lib/auth/errors";
 import { checkBrandLimit, claimOnboardingRun } from "@/lib/limits";
 import { createTenant, createTestDb } from "./helpers/db";
 
@@ -51,6 +52,40 @@ describe("allowlist", () => {
     expect(isAllowed("x@juanbertos.com.evil.mx", list)).toBe(false);
     expect(isAllowed("x@notjuanbertos.com", list)).toBe(false);
     expect(isAllowed("juanbertos.com@evil.mx", list)).toBe(false);
+  });
+});
+
+describe("auth error messages", () => {
+  it("blames the credentials only when the provider does", () => {
+    expect(classifyAuthError("sign-in", { code: "INVALID_EMAIL_OR_PASSWORD", status: 401 })).toBe("bad_credentials");
+    expect(classifyAuthError("sign-in", { status: 401 })).toBe("bad_credentials");
+  });
+
+  it("reports an untrusted site domain as our problem, on both forms", () => {
+    // What a new production domain gets until it is added to the provider.
+    for (const action of ["sign-in", "sign-up"] as const) {
+      const kind = classifyAuthError(action, { code: "INVALID_ORIGIN", status: 403 });
+      expect(kind).toBe("domain_not_trusted");
+      expect(isOperatorProblem(kind)).toBe(true);
+    }
+    expect(classifyAuthError("sign-up", { code: "MISSING_ORIGIN", status: 400 })).toBe("domain_not_trusted");
+  });
+
+  it("does not call an outage a wrong password", () => {
+    expect(classifyAuthError("sign-in", { code: "INTERNAL_ERROR", status: 500 })).toBe("unavailable");
+    expect(classifyAuthError("sign-in", {})).toBe("unavailable");
+    expect(classifyAuthError("sign-up", { status: 503 })).toBe("unavailable");
+  });
+
+  it("tells an unconfirmed account to confirm, and an existing one to sign in", () => {
+    expect(classifyAuthError("sign-in", { code: "EMAIL_NOT_VERIFIED", status: 403 })).toBe("email_not_verified");
+    expect(classifyAuthError("sign-up", { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", status: 422 })).toBe("sign_up_failed");
+    expect(classifyAuthError("sign-up", { code: "PASSWORD_TOO_SHORT", status: 400 })).toBe("weak_password");
+  });
+
+  it("keeps user mistakes out of the error log", () => {
+    expect(isOperatorProblem("bad_credentials")).toBe(false);
+    expect(isOperatorProblem("sign_up_failed")).toBe(false);
   });
 });
 
