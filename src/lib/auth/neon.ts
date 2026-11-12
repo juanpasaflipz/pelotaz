@@ -22,3 +22,17 @@ export function neonAuth(): NeonAuth {
   }
   return instance;
 }
+
+interface ProviderResult {
+  error: { code?: string; status?: number; message?: string } | null;
+}
+
+/** Email one-time codes. The server client has these endpoints but leaves them untyped. */
+export interface EmailOtpApi {
+  sendVerificationOtp(args: { email: string; type: "email-verification" }): Promise<ProviderResult>;
+  verifyEmail(args: { email: string; otp: string }): Promise<ProviderResult>;
+}
+
+export function emailOtp(): EmailOtpApi {
+  return (neonAuth() as unknown as { emailOtp: EmailOtpApi }).emailOtp;
+}

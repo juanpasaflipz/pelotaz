@@ -175,9 +175,16 @@ export const es = {
     },
     unverifiedTitle: "Confirma tu correo",
     unverifiedBody: (email: string) =>
-      `Te enviamos un mensaje a ${email}. Abre el enlace para confirmar que el correo es tuyo y vuelve aquí.`,
-    resend: "Enviar el mensaje otra vez",
-    resent: "Mensaje enviado. Revisa también tu carpeta de spam.",
+      `Te enviamos un código a ${email}. Escríbelo aquí para confirmar que el correo es tuyo.`,
+    code: "Código de confirmación",
+    verify: "Confirmar",
+    verifyErrors: {
+      missing: "Escribe el código que te enviamos.",
+      bad_code: "Ese código no es válido o ya venció. Pide uno nuevo.",
+      unavailable: "No pudimos confirmar el código en este momento. Intenta más tarde.",
+    },
+    resend: "Enviar un código nuevo",
+    resent: "Código enviado. Revisa también tu carpeta de spam.",
     notInvitedTitle: "Tu cuenta aún no tiene acceso",
     notInvitedBody: (email: string) =>
       `Pelotaz está en piloto por invitación y ${email} no está en la lista. Escríbenos para pedir acceso.`,

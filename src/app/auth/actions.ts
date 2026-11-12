@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { isAllowed, parseAllowlist } from "@/lib/auth/access";
 import { classifyAuthError, isOperatorProblem, type AuthError, type ProviderError } from "@/lib/auth/errors";
-import { isNeonAuthConfigured, neonAuth } from "@/lib/auth/neon";
+import { emailOtp, isNeonAuthConfigured, neonAuth } from "@/lib/auth/neon";
 
 export interface AuthFormState {
   error: AuthError | null;
@@ -64,12 +64,45 @@ export async function signOut(): Promise<void> {
   redirect("/auth/sign-in");
 }
 
-/** Send the address-confirmation message again to whoever is signed in. */
+/** The signed-in user as the provider has it now, past the cookie cache. */
+async function freshUser(): Promise<{ email: string; emailVerified: boolean } | undefined> {
+  const { data } = await neonAuth().getSession({ query: { disableCookieCache: "true" } });
+  return (data as { user?: { email: string; emailVerified: boolean } } | null)?.user;
+}
+
+/** Send the address-confirmation code again to whoever is signed in. */
 export async function resendVerification(): Promise<{ sent: boolean }> {
   if (!isNeonAuthConfigured()) return { sent: false };
-  const { data } = await neonAuth().getSession();
-  const email = data?.user?.email;
-  if (!email || data.user.emailVerified) return { sent: false };
-  const { error } = await neonAuth().sendVerificationEmail({ email, callbackURL: "/" });
-  return { sent: !error };
+  const user = await freshUser();
+  const email = user?.email;
+  if (!email || user.emailVerified) return { sent: false };
+  const { error } = await emailOtp().sendVerificationOtp({ email, type: "email-verification" });
+  if (!error) return { sent: true };
+  // Projects set to confirm by link instead of code.
+  const link = await neonAuth().sendVerificationEmail({ email, callbackURL: "/" });
+  return { sent: !link.error };
+}
+
+export interface VerifyState {
+  error: "missing" | "bad_code" | "unavailable" | null;
+}
+
+/** Confirm the signed-in person's address with the code they were emailed. */
+export async function verifyEmailCode(_previous: VerifyState, formData: FormData): Promise<VerifyState> {
+  const otp = String(formData.get("code") ?? "").replace(/\s+/g, "").slice(0, 12);
+  if (!otp) return { error: "missing" };
+  if (!isNeonAuthConfigured()) return { error: "unavailable" };
+  const user = await freshUser();
+  const email = user?.email;
+  if (!email) redirect("/auth/sign-in");
+  if (!user.emailVerified) {
+    const { error } = await emailOtp().verifyEmail({ email, otp });
+    if (error) {
+      // 4xx: wrong, expired or used up. Anything else is ours to look at.
+      if (error.status && error.status < 500) return { error: "bad_code" };
+      console.error("auth provider error", { action: "verify-email", code: error.code, status: error.status });
+      return { error: "unavailable" };
+    }
+  }
+  redirect("/");
 }

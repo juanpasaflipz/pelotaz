@@ -41,8 +41,14 @@ export const getAccess = cache(async function getAccess(): Promise<RequestAccess
     // would log an error for every page while it found that out.
     await connection();
     const { data } = await neonAuth().getSession();
-    const user = data?.user;
+    let user = data?.user;
     if (!user) return { kind: "signed_out" };
+    if (!user.emailVerified) {
+      // The session is cached in a signed cookie for a few minutes, so right
+      // after confirming it can still say "unconfirmed". Ask the provider.
+      const fresh = await neonAuth().getSession({ query: { disableCookieCache: "true" } });
+      if (fresh.data?.user) user = fresh.data.user;
+    }
     return resolveAccess(
       systemDb(),
       { userId: user.id, email: user.email, emailVerified: user.emailVerified, name: user.name },
