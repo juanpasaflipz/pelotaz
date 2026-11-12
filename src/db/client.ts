@@ -17,6 +17,9 @@ export function systemDb(): Db {
   if (!url) {
     throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local and fill it in.");
   }
+  if (!/^postgres(ql)?:\/\//.test(url)) {
+    throw new Error('DATABASE_URL must be a connection string starting with "postgresql://".');
+  }
   const pool = new Pool({ connectionString: url, max: 5 });
   cached = drizzle(pool, { schema });
   return cached;
