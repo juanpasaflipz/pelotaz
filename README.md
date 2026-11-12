@@ -68,7 +68,8 @@ src/
     brand-dna/       profile schema, build + critique + price check, service
     llm/             one small interface; AI SDK adapter behind it
     onboarding/      trigger: in-process locally, n8n in production
-    auth/session.ts  the single seam for authentication (dev mode only so far)
+    auth/            Neon Auth client, access rules, and the session seam
+    limits.ts        per-tenant ceilings on brands and onboarding runs
   app/               pages, server actions, two route handlers
   i18n/es.ts         every string the product shows
 drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger)
@@ -82,6 +83,19 @@ Every table has a `tenant_id` and a Postgres row-level security policy. Request 
 `systemDb()` on its own is the table owner and bypasses those policies. Use it only for work that is cross-tenant by nature.
 
 The role that runs migrations is granted `app_tenant` automatically. If the app connects as a different role, run `GRANT app_tenant TO <that_role>` once.
+
+### Sign-in and access
+
+Sign-in is Neon Auth, which is Better Auth run by Neon: users and sessions are stored in this project's own database under the `neon_auth` schema, and they branch with it. Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` to turn it on.
+
+`src/lib/auth/session.ts` is the only place that knows about the provider. The first time a signed-in person is let in, a tenant and an owner membership are created for them. Two rules decide who is let in:
+
+- **The address must be confirmed.** Turn on "Verify email at signup" in the Neon Console. An unconfirmed account is held at a "confirma tu correo" screen and gets no workspace.
+- **`SIGNUP_ALLOWLIST`, when set, limits who gets a workspace** to listed addresses or domains. Confirmation is checked first, so nobody can claim an invited address they do not control.
+
+`src/proxy.ts` redirects signed-out visitors to the sign-in page. It is a convenience: every page, action and route handler checks the session itself.
+
+Without the Neon settings, `AUTH_MODE=dev` signs every request in as one tenant for local work and refuses to run in a production build.
 
 ### Credits
 
@@ -115,9 +129,10 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 151 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 169 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
+- **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.
 - **Credit ledger**: balance tracking, overdraft aborting a transaction, append-only, idempotency keys.
 - **URL guard and fetcher**: 28 unsafe URL forms, redirects into private space, a hostname that resolves inward at connect time, size cap, content type, charset.
 - **Crawler**: page priority, `robots.txt`, sitemaps, failures, palette, fonts, logo, social links.
@@ -127,9 +142,10 @@ The suite also passes against Postgres 16 with a non-superuser owner role.
 
 ## Not done yet
 
-- **Authentication.** There is no sign-in. `AUTH_MODE=dev` signs every request in as one tenant and refuses to start in a production build, so the app cannot be used when deployed until a provider is wired into `getSession()`.
-- **A live run.** Onboarding has not been run against a real website with a real model: the environment this was built in had neither internet access to arbitrary sites nor an API key. The first thing to do is point it at a real site and read the profile it produces.
+- **Sign-in has not been run against a live Neon Auth project.** The code is typed against the SDK, and with the settings present signed-out and forged requests are redirected to sign-in, but no real account has signed up or signed in yet. Do that once after enabling Auth in the Neon Console.
+- **Password reset and Google sign-in.** Not built. Email and password only.
+- **Prompt tuning on more than one site.** Onboarding has been run for real on one restaurant site. Other kinds of business will surface other mistakes.
 - **JavaScript-rendered sites.** Pages are fetched as HTML, not rendered in a browser. A site that builds its content client-side yields little text and is reported as such rather than guessed at.
-- **Limits.** No rate limiting and no cap on brands per tenant. Creating a brand costs a crawl and two model calls.
+- **Plan-based limits.** Each tenant has a ceiling on brands and on onboarding runs per day (`MAX_BRANDS_PER_TENANT`, `ONBOARDINGS_PER_DAY`). These are safety limits, not entitlements tied to a paid plan.
 - **Phases 2 to 6**: planner, drafts, approval queue, channel adapters, metrics, suggestions, images, video, billing, WhatsApp, local payments.
 - **English UI.** Strings are externalised in `src/i18n/es.ts`; only Spanish exists.

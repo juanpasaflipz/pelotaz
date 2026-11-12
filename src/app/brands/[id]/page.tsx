@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
+import { AccessNotice } from "@/components/access-notice";
 import { DnaEditor } from "@/components/dna-editor";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { RestartButton } from "@/components/restart-button";
 import { SetupNotice } from "@/components/setup-notice";
 import { es } from "@/i18n/es";
-import { getSessionOrNull } from "@/lib/auth/session";
+import { getAccessOrSetup } from "@/lib/auth/session";
 import type { ReviewFlag } from "@/lib/brand-dna/schema";
 import { getBrandWithDna } from "@/lib/data";
 
@@ -28,9 +29,11 @@ export default function BrandPage({ params }: PageProps<"/brands/[id]">) {
 
 async function BrandView({ params }: Pick<PageProps<"/brands/[id]">, "params">) {
   const { id } = await params;
-  const session = await getSessionOrNull();
-  if (!session) return <SetupNotice />;
-  const data = await getBrandWithDna(session.tenantId, id);
+  const access = await getAccessOrSetup();
+  if (access.kind === "setup") return <SetupNotice />;
+  if (access.kind === "signed_out") redirect("/auth/sign-in");
+  if (access.kind !== "ok") return <AccessNotice kind={access.kind} email={access.email} />;
+  const data = await getBrandWithDna(access.tenantId, id);
   if (!data) notFound();
   const { brand, dna } = data;
   const working =

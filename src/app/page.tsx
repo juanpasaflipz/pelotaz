@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { AccessNotice } from "@/components/access-notice";
 import { NewBrandForm } from "@/components/new-brand-form";
 import { SetupNotice } from "@/components/setup-notice";
 import { StatusLabel } from "@/components/status-label";
 import { es } from "@/i18n/es";
-import { getSessionOrNull } from "@/lib/auth/session";
+import { getAccessOrSetup } from "@/lib/auth/session";
 import { listBrands } from "@/lib/data";
 
 // Creating a brand can run the crawl in-process in local development.
@@ -34,9 +36,11 @@ export default function HomePage() {
 
 async function BrandList() {
   await connection();
-  const session = await getSessionOrNull();
-  if (!session) return <SetupNotice />;
-  const brands = await listBrands(session.tenantId);
+  const access = await getAccessOrSetup();
+  if (access.kind === "setup") return <SetupNotice />;
+  if (access.kind === "signed_out") redirect("/auth/sign-in");
+  if (access.kind !== "ok") return <AccessNotice kind={access.kind} email={access.email} />;
+  const brands = await listBrands(access.tenantId);
 
   if (brands.length === 0) {
     return <p className="mt-6 max-w-prose text-tinta-suave">{es.home.empty}</p>;

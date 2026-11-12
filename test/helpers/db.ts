@@ -36,6 +36,9 @@ export async function createTestDb(): Promise<{ db: Db; close: () => Promise<voi
   const url = new URL(serverUrl);
   url.pathname = `/${name}`;
   const pool = new Pool({ connectionString: url.toString(), max: 4 });
+  // Dropping the database at the end terminates any connection still closing;
+  // that is expected during teardown and not a test failure.
+  pool.on("error", () => {});
   const db = drizzleNode(pool, { schema });
   await migrateNode(db, { migrationsFolder });
   return {

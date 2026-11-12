@@ -28,6 +28,8 @@ export const es = {
       invalid_url: "Esa dirección no se ve bien escrita. Prueba con algo como tutaqueria.mx.",
       private_url: "Esa dirección no es un sitio público. Usa la de tu sitio en internet.",
       invalid_input: "Revisa lo que elegiste e intenta de nuevo.",
+      brand_limit: "Llegaste al máximo de marcas de tu cuenta.",
+      daily_limit: "Llegaste al máximo de lecturas de sitio por hoy. Intenta mañana.",
     },
   },
   goals: {
@@ -141,9 +143,44 @@ export const es = {
       emojiUse: { none: "Sin emojis", light: "Pocos", heavy: "Muchos" },
     },
   },
+  limits: {
+    brand_limit: "Llegaste al máximo de marcas de tu cuenta.",
+    daily_limit: "Llegaste al máximo de lecturas de sitio por hoy. Intenta mañana.",
+  },
+  auth: {
+    signIn: "Iniciar sesión",
+    signUp: "Crear cuenta",
+    signOut: "Cerrar sesión",
+    signInTitle: "Entra a tu cuenta",
+    signUpTitle: "Crea tu cuenta",
+    name: "Tu nombre",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    passwordHint: "Mínimo 8 caracteres.",
+    working: "Un momento",
+    noAccount: "¿No tienes cuenta?",
+    haveAccount: "¿Ya tienes cuenta?",
+    justRegistered: "Si acabas de registrarte, revisa tu correo para confirmar tu cuenta antes de entrar.",
+    errors: {
+      missing: "Escribe tu correo y tu contraseña.",
+      weak_password: "La contraseña debe tener al menos 8 caracteres.",
+      bad_credentials: "Correo o contraseña incorrectos.",
+      sign_up_failed: "No pudimos crear la cuenta. Si ya tienes una, inicia sesión.",
+      not_invited: "Por ahora el registro es solo por invitación. Escríbenos para pedir acceso.",
+      unavailable: "El inicio de sesión no está disponible en este momento. Intenta más tarde.",
+    },
+    unverifiedTitle: "Confirma tu correo",
+    unverifiedBody: (email: string) =>
+      `Te enviamos un mensaje a ${email}. Abre el enlace para confirmar que el correo es tuyo y vuelve aquí.`,
+    resend: "Enviar el mensaje otra vez",
+    resent: "Mensaje enviado. Revisa también tu carpeta de spam.",
+    notInvitedTitle: "Tu cuenta aún no tiene acceso",
+    notInvitedBody: (email: string) =>
+      `Pelotaz está en piloto por invitación y ${email} no está en la lista. Escríbenos para pedir acceso.`,
+  },
   setup: {
     title: "Falta configurar el acceso",
-    body: "Todavía no hay un proveedor de inicio de sesión conectado. Para desarrollo local, define AUTH_MODE=dev y DEV_TENANT_ID en .env.local (npm run db:seed imprime el identificador). En producción la aplicación se niega a funcionar sin un proveedor real.",
+    body: "El inicio de sesión no está configurado. Define NEON_AUTH_BASE_URL y NEON_AUTH_COOKIE_SECRET (Neon Auth), o para desarrollo local AUTH_MODE=dev y DEV_TENANT_ID en .env.local (npm run db:seed imprime el identificador).",
   },
 };
 
