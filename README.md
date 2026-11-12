@@ -136,7 +136,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 196 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 197 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.
@@ -156,7 +156,7 @@ The suite also passes against Postgres 16 with a non-superuser owner role.
 - **JavaScript-rendered sites.** Pages are fetched as HTML, not rendered in a browser. A site that builds its content client-side yields little text and is reported as such rather than guessed at.
 - **Plan-based limits.** Each tenant has a ceiling on brands and on onboarding runs per day (`MAX_BRANDS_PER_TENANT`, `ONBOARDINGS_PER_DAY`). These are safety limits, not entitlements tied to a paid plan.
 - **The weekly plan has been run with test models only.** Run `npm run try -- <site> --week` with a real key before relying on it.
-- **Photos are picked by description and file name.** The model does not see them; the owner can swap the photo on each post.
+- **Photos are picked by description and file name** when the week is planned, each at most once. The model does not see them; the owner can swap the photo on each post.
 - **No calendar.** Plans do not mention holidays or events, on purpose, until a per-country calendar exists.
 - **Publishing**: approved posts are copied out by hand. Meta (Instagram, Facebook) publishing needs app review.
 - **Later phases**: channel adapters, metrics, suggestions, generated images, video, billing, WhatsApp, local payments.

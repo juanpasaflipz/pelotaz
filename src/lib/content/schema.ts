@@ -46,6 +46,11 @@ export const plannedPostSchema = z.object({
     .nullable()
     .describe("Exact name of the offer from the profile this post features, or null."),
   callToAction: z.string().describe("What the reader should do, in the brand's language."),
+  imageNumber: z
+    .number()
+    .int()
+    .nullable()
+    .describe("Number of the photo from the list that this post uses, or null if none fits. Each photo at most once a week."),
 });
 export type PlannedPost = z.infer<typeof plannedPostSchema>;
 
@@ -60,11 +65,6 @@ export type WeekPlan = z.infer<typeof weekPlanSchema>;
 export const postDraftSchema = z.object({
   caption: z.string().describe("The post text, ready to publish, without hashtags."),
   hashtags: z.array(z.string()).describe("Zero to five hashtags without the # sign."),
-  imageNumber: z
-    .number()
-    .int()
-    .nullable()
-    .describe("Number of the photo from the list that best fits, or null if none fits."),
 });
 export type PostDraft = z.infer<typeof postDraftSchema>;
 
@@ -86,6 +86,8 @@ export interface PostBrief {
   angle: string;
   offerName: string | null;
   callToAction: string;
+  /** The photo chosen when the week was planned, as an asset id. */
+  imageAssetId?: string | null;
 }
 
 export const PLAN_LIMITS = {
@@ -94,7 +96,7 @@ export const PLAN_LIMITS = {
   shortText: 160,
   caption: 2_000,
   hashtags: 5,
-  candidateImages: 24,
+  candidateImages: 40,
 } as const;
 
 /** A photo from the brand's own site that a post may use. */
@@ -109,9 +111,10 @@ const clamp = (value: string, max: number) => value.trim().replace(/\s+/g, " ").
  * Bound and tidy a model plan: at most one post per day and channel, offers
  * that exist in the profile, and the plan's own length limits.
  */
-export function normalizePlan(plan: WeekPlan, offerNames: string[]): WeekPlan {
+export function normalizePlan(plan: WeekPlan, offerNames: string[], imageCount = 0): WeekPlan {
   const byName = new Map(offerNames.map((name) => [name.trim().toLowerCase(), name]));
   const seen = new Set<string>();
+  const usedImages = new Set<number>();
   const posts: PlannedPost[] = [];
   for (const post of plan.posts) {
     const slot = `${post.day}:${post.channel}:${post.format}`;
@@ -119,6 +122,12 @@ export function normalizePlan(plan: WeekPlan, offerNames: string[]): WeekPlan {
     const topic = clamp(post.topic, PLAN_LIMITS.shortText);
     if (!topic) continue;
     seen.add(slot);
+    // A photo that does not exist, or one already used this week, becomes no photo.
+    let imageNumber = post.imageNumber;
+    if (imageNumber !== null && (imageNumber < 1 || imageNumber > imageCount || usedImages.has(imageNumber))) {
+      imageNumber = null;
+    }
+    if (imageNumber !== null) usedImages.add(imageNumber);
     posts.push({
       ...post,
       topic,
@@ -126,6 +135,7 @@ export function normalizePlan(plan: WeekPlan, offerNames: string[]): WeekPlan {
       callToAction: clamp(post.callToAction, PLAN_LIMITS.shortText),
       // A name the profile does not have is the model inventing a product.
       offerName: post.offerName ? (byName.get(post.offerName.trim().toLowerCase()) ?? null) : null,
+      imageNumber,
     });
     if (posts.length === PLAN_LIMITS.maxPosts) break;
   }

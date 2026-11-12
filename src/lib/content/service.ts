@@ -206,19 +206,23 @@ async function draftOne(
   item: { id: string; brandId: string; channel: string; format: string; brief: PostBrief },
   context: BrandContext,
   rewrite?: { copy: string; instruction: string },
+  /** The photo the post has now, when there is a previous version. */
+  currentAssetIds?: string[],
 ): Promise<boolean> {
   const { db, llm, critic = llm } = deps;
+  // A new version keeps the photo the owner has now; a first draft uses the plan's.
+  const assetId = currentAssetIds ? (currentAssetIds[0] ?? null) : (item.brief.imageAssetId ?? null);
+  const image = context.images.find((candidate) => candidate.id === assetId) ?? null;
   try {
     const built = await writeDraft(llm, critic, {
       profile: context.profile,
       channel: item.channel,
       format: item.format,
       brief: item.brief,
-      images: context.images,
+      image,
       siteText: context.siteText,
       rewrite,
     });
-    const image = built.image === null ? null : context.images[built.image];
     await withTenant(db, tenantId, async (tx) => {
       await tx.insert(drafts).values({
         tenantId,
@@ -300,7 +304,7 @@ export async function runPlan(deps: ContentDeps, tenantId: string, planId: strin
 
   let built;
   try {
-    built = await planWeek(llm, { profile: context.profile, weekStart: plan.weekStart });
+    built = await planWeek(llm, { profile: context.profile, weekStart: plan.weekStart, images: context.images });
   } catch (error) {
     console.error("plan failed", { planId, error: error instanceof Error ? error.message : error });
     return fail("llm_error");
@@ -327,7 +331,10 @@ export async function runPlan(deps: ContentDeps, tenantId: string, planId: strin
             planId,
             channel: post.channel,
             format: post.format,
-            brief: post.brief as unknown as Record<string, unknown>,
+            brief: {
+              ...post.brief,
+              imageAssetId: post.image === null ? null : (context.images[post.image]?.id ?? null),
+            } as unknown as Record<string, unknown>,
             status: "drafting" as const,
           })),
         )
@@ -411,6 +418,7 @@ export async function runRewrite(deps: ContentDeps, tenantId: string, itemId: st
     loaded.latest && rewriteInstruction
       ? { copy: loaded.latest.copy, instruction: rewriteInstruction }
       : undefined,
+    loaded.latest?.assetIds,
   );
 }
 

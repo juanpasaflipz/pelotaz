@@ -43,14 +43,15 @@ const post = (overrides: Partial<PlannedPost> = {}): PlannedPost => ({
   angle: "El martes rinde el doble.",
   offerName: "Taco al pastor",
   callToAction: "Pide hoy",
+  imageNumber: null,
   ...overrides,
 });
 
 const PLAN: WeekPlan = {
   rationale: "Mezcla de promoción, producto y comunidad para vender más entre semana.",
   posts: [
-    post(),
-    post({ day: "thu", pillar: "product", topic: "Arrachera al mezquite", offerName: "Taco de arrachera" }),
+    post({ imageNumber: 1 }),
+    post({ day: "thu", format: "story", pillar: "product", topic: "Arrachera al mezquite", offerName: "Taco de arrachera", imageNumber: 1 }),
     post({ day: "sat", channel: "facebook", pillar: "community", topic: "Chapultepec", offerName: null }),
   ],
 };
@@ -58,7 +59,6 @@ const PLAN: WeekPlan = {
 const DRAFT = {
   caption: "Martes de 2x1 en tacos al pastor 🌮\nDe 6 a 10 pm. Taco al pastor a $24.\nPide hoy.",
   hashtags: ["tacos", "#Guadalajara", "comida mexicana", "x", "tacos"],
-  imageNumber: 1,
 };
 
 function contentLlm(overrides: Record<string, (request: { prompt: string }) => unknown> = {}) {
@@ -124,6 +124,23 @@ describe("plan and copy rules", () => {
     expect(plan.rationale).toBe("ok");
   });
 
+  it("uses each photo once a week and drops photos that do not exist", () => {
+    const plan = normalizePlan(
+      {
+        rationale: "",
+        posts: [
+          post({ day: "mon", imageNumber: 2 }),
+          post({ day: "tue", imageNumber: 2 }),
+          post({ day: "wed", imageNumber: 9 }),
+          post({ day: "thu", imageNumber: 0 }),
+        ],
+      },
+      [],
+      3,
+    );
+    expect(plan.posts.map((p) => p.imageNumber)).toEqual([2, null, null, null]);
+  });
+
   it("caps the week at seven posts", () => {
     const many = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].flatMap((day) =>
       (["instagram", "facebook"] as const).map((channel) => post({ day: day as PlannedPost["day"], channel })),
@@ -178,8 +195,12 @@ describe("weekly plan", () => {
     expect(week?.plan.weekStart).toBe(monday);
     expect(week?.items.map((i) => new Date(`${i.brief.date}T00:00:00Z`).getUTCDay())).toEqual([2, 4, 6]);
 
-    const first = week!.items[0];
+    const [first, story] = week!.items;
     expect(first.draft?.copy).toContain("#tacos #Guadalajara #comidamexicana");
+    // Stories carry no hashtags; the second post asked for the first post's photo and gets none.
+    expect(story.item.format).toBe("story");
+    expect(story.draft?.copy).not.toContain("#");
+    expect(story.draft?.assetIds).toEqual([]);
     expect(first.draft?.reviewFlags).toEqual([]);
     expect(first.draft?.llmUsage.map((u) => u.purpose)).toEqual(["content.draft", "content.critique"]);
 
@@ -193,6 +214,10 @@ describe("weekly plan", () => {
     const planCall = llm.calls.find((call) => call.purpose === "content.plan")!;
     expect(planCall.prompt).toContain("Taco al pastor");
     expect(planCall.instructions).toContain("Never invent discounts");
+    expect(planCall.prompt).toContain("tacos-arrachera.jpg");
+    // The draft is told which photo it goes with.
+    const draftCall = llm.calls.find((call) => call.purpose === "content.draft" && call.prompt.includes("Martes de 2x1"))!;
+    expect(draftCall.prompt).toContain(`The post's photo: `);
   });
 
   it("records an invented price on the draft for the owner to see", async () => {
@@ -359,6 +384,9 @@ describe("approval", () => {
     const week = await latestWeek(db, tenantId, brandId);
     const { item } = week!.items[0];
 
+    // The owner swaps the photo, then asks for a rewrite: the new version keeps their photo.
+    const photo = week!.images.at(-1)!;
+    await saveItem(db, tenantId, item.id, { copy: week!.items[0].draft!.copy, assetId: photo.id, decision: "save" });
     expect(await requestRewrite(db, tenantId, item.id, "Más corto", LIMITS)).toEqual({ ok: true });
     // While it is being rewritten, nobody can approve the old text.
     expect(await saveItem(db, tenantId, item.id, { copy: "x", assetId: null, decision: "approve" })).toEqual({
@@ -375,6 +403,7 @@ describe("approval", () => {
     expect(updated.item.status).toBe("needs_approval");
     expect(updated.draft?.copy).toContain("Versión más corta");
     expect(updated.draft?.instruction).toBe("Más corto");
+    expect(updated.draft?.assetIds).toEqual([photo.id]);
   });
 
   it("keeps each tenant's plans out of the other's reach", async () => {

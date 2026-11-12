@@ -50,15 +50,15 @@ async function main() {
       "content.plan": () => ({
         rationale: "Dos publicaciones para vender entre semana y una de barrio para el sábado.",
         posts: [
-          { day: "tue", channel: "instagram", format: "post", pillar: "promotion", topic: "Martes de 2x1 al pastor", angle: "El martes rinde el doble.", offerName: "Taco al pastor", callToAction: "Pide a domicilio" },
-          { day: "thu", channel: "instagram", format: "story", pillar: "product", topic: "Arrachera al mezquite", angle: "El carbón es la receta.", offerName: "Taco de arrachera", callToAction: "Pide hoy" },
-          { day: "sat", channel: "facebook", pillar: "community", format: "post", topic: "Sábado en Chapultepec", angle: "La taquería del barrio.", offerName: null, callToAction: "Ven por tus tacos" },
+          { day: "tue", channel: "instagram", format: "post", pillar: "promotion", topic: "Martes de 2x1 al pastor", angle: "El martes rinde el doble.", offerName: "Taco al pastor", callToAction: "Pide a domicilio", imageNumber: 1 },
+          { day: "thu", channel: "instagram", format: "story", pillar: "product", topic: "Arrachera al mezquite", angle: "El carbón es la receta.", offerName: "Taco de arrachera", callToAction: "Pide hoy", imageNumber: 2 },
+          { day: "sat", channel: "facebook", pillar: "community", format: "post", topic: "Sábado en Chapultepec", angle: "La taquería del barrio.", offerName: null, callToAction: "Ven por tus tacos", imageNumber: null },
         ],
       }),
       "content.draft": (request) =>
         request.prompt.includes("Arrachera")
-          ? { caption: "Arrachera al carbón de mezquite, ahora a $35.\nPide hoy.", hashtags: ["tacos"], imageNumber: 1 }
-          : { caption: "Martes de 2x1 en tacos al pastor 🌮\nDe 6 a 10 pm. Taco al pastor a $24.\nPide a domicilio.", hashtags: ["tacos", "Guadalajara"], imageNumber: 1 },
+          ? { caption: "Arrachera al carbón de mezquite, ahora a $35.\nPide hoy.", hashtags: ["tacos"] }
+          : { caption: "Martes de 2x1 en tacos al pastor 🌮\nDe 6 a 10 pm. Taco al pastor a $24.\nPide a domicilio.", hashtags: ["tacos", "Guadalajara"] },
       "content.critique": () => ({ flags: [] }),
     });
     const plan = await requestPlan(db, tenantId, brandId, { plansPerDay: 99, rewritesPerDay: 99 });
