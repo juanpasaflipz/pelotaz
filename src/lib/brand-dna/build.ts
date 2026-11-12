@@ -136,6 +136,23 @@ function amountsIn(text: string, pattern: RegExp): Set<string> {
   return found;
 }
 
+/** Amounts written as prices (next to a currency symbol or word) in `text`. */
+export function pricesIn(text: string): Set<string> {
+  return new Set([...amountsIn(text, CURRENCY_BEFORE), ...amountsIn(text, CURRENCY_AFTER)]);
+}
+
+/**
+ * Amounts a text gives as prices. A source that never marks a currency (some
+ * menus list bare numbers) falls back to every whole number in it.
+ */
+export function knownPrices(corpus: string): Set<string> {
+  const priced = pricesIn(corpus);
+  return priced.size > 0 ? priced : amountsIn(corpus, ANY_NUMBER);
+}
+
+/** "1,250.00" and "1,250" are the same amount. */
+export { canonicalAmount };
+
 /**
  * Deterministic check that does not depend on a model: every price in the
  * profile must appear on the crawled pages as a price, meaning next to a
@@ -147,9 +164,7 @@ function amountsIn(text: string, pattern: RegExp): Set<string> {
  * to matching whole numbers so that every offer is not flagged.
  */
 export function checkPrices(draft: BrandDnaDraft, pages: CrawledPage[]): ReviewFlag[] {
-  const corpus = pages.map((page) => page.text).join("\n");
-  let known = new Set([...amountsIn(corpus, CURRENCY_BEFORE), ...amountsIn(corpus, CURRENCY_AFTER)]);
-  if (known.size === 0) known = amountsIn(corpus, ANY_NUMBER);
+  const known = knownPrices(pages.map((page) => page.text).join("\n"));
 
   const flags: ReviewFlag[] = [];
   draft.offers.forEach((offer, index) => {

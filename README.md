@@ -2,7 +2,7 @@
 
 Marketing on autopilot for Spanish-speaking small businesses. A business pastes its website, Pelotaz builds a brand profile from it, and that profile drives everything written for the business afterwards.
 
-This repository is **phase 1** of the build plan: the multi-tenant foundation, site crawling, and Brand DNA. Planning, drafting, the approval queue, publishing and billing are later phases; their tables exist but nothing reads or writes them yet.
+This repository covers **phase 1** (the multi-tenant foundation, site crawling, Brand DNA) and the first part of **phase 2** (weekly plan, drafts, approval). Publishing to channels, metrics and billing are later phases.
 
 ## What works today
 
@@ -11,6 +11,9 @@ This repository is **phase 1** of the build plan: the multi-tenant foundation, s
 3. A language model drafts the brand profile (voice, audience, offers, rules). Colours, fonts and logo are read from the site's markup and CSS, not guessed by the model.
 4. The draft is checked twice: a second model pass lists claims the pages do not support, and code verifies that every price in the profile appears on the site as a price.
 5. The owner reviews and edits the profile in Spanish. Each save is a new version; nothing is overwritten.
+6. **Plan de la semana**: the model proposes 3 to 7 posts for the coming week (day, channel, pillar, featured offer) from the profile, then writes each one in the brand's voice and picks a photo from the brand's own site.
+7. Every post is checked like the profile: prices in code against the site and the profile, banned words in code, and a second model pass for claims the profile does not support. The owner's own edits get the code checks too.
+8. The owner edits, approves, rejects or asks for a rewrite ("más corto, sin emojis"). Approved posts are copied out by hand for now; nothing is published automatically.
 
 ## Setup
 
@@ -29,12 +32,13 @@ To try onboarding on a real site without setting up a database (it uses a throwa
 ```bash
 npm run try -- https://www.example.mx --crawl-only   # what the crawler reads; no model, no cost
 npm run try -- https://www.example.mx                # full run; needs LLM_MODEL and its API key
+npm run try -- https://www.example.mx --week         # then plan next week and draft every post
 ```
 
 To see the profile editor without an API key or network access:
 
 ```bash
-npm run db:seed:demo            # adds a finished demo brand built from an in-memory site
+npm run db:seed:demo            # adds a finished demo brand and a planned week, from an in-memory site
 ```
 
 | Command | Does |
@@ -66,13 +70,14 @@ src/
   lib/
     crawl/           URL guard, guarded fetcher, robots, discovery, extraction
     brand-dna/       profile schema, build + critique + price check, service
+    content/         weekly plan, post drafts, checks, approval
     llm/             one small interface; AI SDK adapter behind it
     onboarding/      trigger: in-process locally, n8n in production
     auth/            Neon Auth client, access rules, and the session seam
     limits.ts        per-tenant ceilings on brands and onboarding runs
   app/               pages, server actions, two route handlers
   i18n/es.ts         every string the product shows
-drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger)
+drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review)
 test/                suites plus an invented restaurant site as a fixture
 ```
 
@@ -131,7 +136,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 177 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 196 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.
@@ -139,6 +144,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 - **URL guard and fetcher**: 28 unsafe URL forms, redirects into private space, a hostname that resolves inward at connect time, size cap, content type, charset.
 - **Crawler**: page priority, `robots.txt`, sitemaps, failures, palette, fonts, logo, social links.
 - **Brand DNA**: the full onboarding run, invented prices being flagged, critic failure, model failure, thin sites, concurrent triggers, retries, edits and versions.
+- **Weekly plan and approval**: invented offers dropped, one post per slot, invented prices and banned words flagged, a failed draft not sinking the plan, double triggers, re-planning never discarding approved posts, owner edits as checked versions, rewrites, photos from another brand refused, tenant isolation.
 
 The suite also passes against Postgres 16 with a non-superuser owner role.
 
@@ -149,5 +155,9 @@ The suite also passes against Postgres 16 with a non-superuser owner role.
 - **Prompt tuning on more than one site.** Onboarding has been run for real on one restaurant site. Other kinds of business will surface other mistakes.
 - **JavaScript-rendered sites.** Pages are fetched as HTML, not rendered in a browser. A site that builds its content client-side yields little text and is reported as such rather than guessed at.
 - **Plan-based limits.** Each tenant has a ceiling on brands and on onboarding runs per day (`MAX_BRANDS_PER_TENANT`, `ONBOARDINGS_PER_DAY`). These are safety limits, not entitlements tied to a paid plan.
-- **Phases 2 to 6**: planner, drafts, approval queue, channel adapters, metrics, suggestions, images, video, billing, WhatsApp, local payments.
+- **The weekly plan has been run with test models only.** Run `npm run try -- <site> --week` with a real key before relying on it.
+- **Photos are picked by description and file name.** The model does not see them; the owner can swap the photo on each post.
+- **No calendar.** Plans do not mention holidays or events, on purpose, until a per-country calendar exists.
+- **Publishing**: approved posts are copied out by hand. Meta (Instagram, Facebook) publishing needs app review.
+- **Later phases**: channel adapters, metrics, suggestions, generated images, video, billing, WhatsApp, local payments.
 - **English UI.** Strings are externalised in `src/i18n/es.ts`; only Spanish exists.

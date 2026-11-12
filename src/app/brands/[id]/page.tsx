@@ -44,6 +44,12 @@ async function BrandView({ params }: Pick<PageProps<"/brands/[id]">, "params">) 
       <h1 className="display mt-4 break-words text-5xl sm:text-6xl">{brand.name}</h1>
       <p className="mt-2 break-all text-tinta-suave">{brand.sourceUrl}</p>
 
+      {brand.status === "ready" && dna && (
+        <Link href={`/brands/${brand.id}/semana`} className="button button-primary mt-6">
+          {es.week.link} →
+        </Link>
+      )}
+
       {working && <OnboardingProgress brandId={brand.id} initial={brand.status as "pending"} />}
 
       {brand.status === "failed" && (

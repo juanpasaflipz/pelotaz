@@ -206,8 +206,9 @@ export const crawlPages = pgTable(
 );
 
 // ---------------------------------------------------------------------------
-// Channels, planning, content. Defined now so later phases do not reshape the
-// tenant model; nothing in phase 1 reads or writes these yet.
+// Channels, planning, content. Plans, content items, drafts and assets are
+// used by the weekly planner (phase 2); connections and publications wait for
+// channel publishing.
 // ---------------------------------------------------------------------------
 
 export const connections = pgTable(
@@ -251,8 +252,14 @@ export const plans = pgTable(
       .references(() => brands.id, { onDelete: "cascade" }),
     weekStart: date("week_start").notNull(),
     rationale: text("rationale"),
-    status: text("status").notNull().default("draft"),
+    /** planning → drafting → ready, or failed with `status_detail`. */
+    status: text("status").notNull().default("planning"),
+    statusDetail: text("status_detail"),
+    /** The Brand DNA version the plan was written from. */
+    brandDnaVersion: integer("brand_dna_version"),
+    llmUsage: jsonb("llm_usage").$type<LlmUsage[]>().notNull().default([]),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex("plans_brand_week").on(t.brandId, t.weekStart),
@@ -308,13 +315,18 @@ export const assets = pgTable(
       .notNull()
       .references(() => brands.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
+    /** For images taken from the brand's site, the original URL on that site. */
     storageUrl: text("storage_url").notNull(),
+    alt: text("alt"),
     width: integer("width"),
     height: integer("height"),
     durationMs: integer("duration_ms"),
     createdAt: createdAt(),
   },
-  () => [tenantPolicy("assets")],
+  (t) => [
+    uniqueIndex("assets_brand_url").on(t.brandId, t.storageUrl),
+    tenantPolicy("assets"),
+  ],
 );
 
 export const drafts = pgTable(
@@ -334,6 +346,12 @@ export const drafts = pgTable(
     copy: text("copy").notNull(),
     assetIds: jsonb("asset_ids").$type<string[]>().notNull().default([]),
     model: text("model"),
+    /** `generated` by the model, or `user_edit`. */
+    source: text("source").notNull().default("generated"),
+    /** What the owner asked to change, when this version is a rewrite. */
+    instruction: text("instruction"),
+    /** Claims the checks could not support. Same shape as on Brand DNA. */
+    reviewFlags: jsonb("review_flags").$type<ReviewFlag[]>().notNull().default([]),
     costCredits: integer("cost_credits").notNull().default(0),
     llmUsage: jsonb("llm_usage").$type<LlmUsage[]>().notNull().default([]),
     createdAt: createdAt(),

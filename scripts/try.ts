@@ -6,6 +6,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../src/db/schema";
 import { withTenant, type Db } from "../src/db/tenant";
 import { latestBrandDna, onboardBrand } from "../src/lib/brand-dna/service";
+import { latestWeek, requestPlan, runPlan } from "../src/lib/content/service";
 import { crawlSite } from "../src/lib/crawl/crawl";
 import { siteKey } from "../src/lib/crawl/discover";
 import { createGuardedFetcher } from "../src/lib/crawl/fetcher";
@@ -22,6 +23,7 @@ import { loadEnv } from "./env";
  *   npm run try -- https://example.mx --crawl-only what the crawler reads, no model, no cost
  *   npm run try -- https://example.mx --country CO --goal followers
  *   npm run try -- https://example.mx --json       the stored profile as JSON only
+ *   npm run try -- https://example.mx --week       then plan next week and draft every post
  */
 function option(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
@@ -34,7 +36,7 @@ async function main() {
   loadEnv();
   const target = process.argv[2];
   if (!target || target.startsWith("--")) {
-    console.error("Usage: npm run try -- <website> [--crawl-only] [--country MX] [--goal sales] [--json]");
+    console.error("Usage: npm run try -- <website> [--crawl-only] [--week] [--country MX] [--goal sales] [--json]");
     process.exit(1);
   }
   const url = parsePublicUrl(target).toString();
@@ -127,8 +129,49 @@ async function main() {
       );
     }
     console.log("");
+
+    if (process.argv.includes("--week")) await tryWeek(db, tenant.id, brandId, { llm, critic });
   } finally {
     await client.close();
+  }
+}
+
+async function tryWeek(
+  db: Db,
+  tenantId: string,
+  brandId: string,
+  models: { llm: ReturnType<typeof getLlm>; critic: ReturnType<typeof getLlm> },
+) {
+  const request = await requestPlan(db, tenantId, brandId, { plansPerDay: 10, rewritesPerDay: 10 });
+  if (request.state !== "started") {
+    console.error(`Plan not started: ${request.state}`);
+    return;
+  }
+  const started = Date.now();
+  const outcome = await runPlan({ db, ...models }, tenantId, request.planId);
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
+  console.log(`\n=== Week plan: ${JSON.stringify(outcome)} in ${seconds}s ===\n`);
+  const week = await latestWeek(db, tenantId, brandId);
+  if (!week) return;
+  console.log(`Week of ${week.plan.weekStart}\n${week.plan.rationale ?? ""}\n`);
+  const usage = [...week.plan.llmUsage];
+  for (const { item, brief, draft } of week.items) {
+    const image = week.images.find((candidate) => candidate.id === draft?.assetIds[0]);
+    console.log(`--- ${brief.date} · ${item.channel} ${item.format} · ${brief.pillar} · ${item.status}`);
+    console.log(`Topic: ${brief.topic}${brief.offerName ? `  [offer: ${brief.offerName}]` : ""}`);
+    console.log(`Angle: ${brief.angle}`);
+    console.log(`Photo: ${image ? `${image.url}${image.alt ? ` ("${image.alt}")` : ""}` : "(none)"}\n`);
+    console.log(draft ? draft.copy : "(no draft)");
+    for (const flag of draft?.reviewFlags ?? []) console.log(`  ! [${flag.source}] ${flag.claim}: ${flag.reason}`);
+    console.log("");
+    usage.push(...(draft?.llmUsage ?? []));
+  }
+  console.log(`Photos offered to the model: ${week.images.length}`);
+  console.log("\n--- Week model usage ---\n");
+  for (const entry of usage) {
+    console.log(
+      `${entry.purpose.padEnd(22)}${entry.model.padEnd(34)}in ${entry.inputTokens ?? "?"}  out ${entry.outputTokens ?? "?"}`,
+    );
   }
 }
 
