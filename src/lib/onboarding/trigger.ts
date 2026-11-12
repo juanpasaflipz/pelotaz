@@ -5,7 +5,7 @@ import { brands } from "@/db/schema";
 import { withTenant } from "@/db/tenant";
 import { onboardBrand } from "@/lib/brand-dna/service";
 import { createGuardedFetcher } from "@/lib/crawl/fetcher";
-import { getLlm } from "@/lib/llm/ai-sdk";
+import { getCriticLlm, getLlm } from "@/lib/llm/ai-sdk";
 
 /**
  * Record why a run could not start. A brand that is already `ready` keeps its
@@ -23,15 +23,17 @@ async function markFailed(tenantId: string, brandId: string, reason: string) {
 /** Run onboarding in this process. Used directly by the internal API route. */
 export async function runOnboarding(tenantId: string, brandId: string, force = false) {
   let llm;
+  let critic;
   try {
     llm = getLlm();
+    critic = getCriticLlm();
   } catch {
     // Without this the brand would sit in "pending" with no explanation.
     await markFailed(tenantId, brandId, "llm_not_configured");
     return { state: "failed", reason: "llm_not_configured" } as const;
   }
   return onboardBrand(
-    { db: systemDb(), fetcher: createGuardedFetcher(), llm },
+    { db: systemDb(), fetcher: createGuardedFetcher(), llm, critic },
     tenantId,
     brandId,
     { force },

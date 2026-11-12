@@ -156,6 +156,8 @@ export async function buildBrandDna(
   llm: Llm,
   crawl: CrawlResult,
   context: BrandContext,
+  /** Model for the audit pass. Defaults to the drafting model. */
+  critic: Llm = llm,
 ): Promise<BuiltBrandDna> {
   const usage: LlmUsage[] = [];
 
@@ -170,7 +172,7 @@ export async function buildBrandDna(
 
   const reviewFlags: ReviewFlag[] = checkPrices(draft, crawl.pages);
   try {
-    const critique = await llm.generateObject({
+    const critique = await critic.generateObject({
       purpose: "brand_dna.critique",
       schema: critiqueSchema,
       instructions: CRITIQUE_INSTRUCTIONS,

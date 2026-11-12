@@ -94,7 +94,7 @@ Anyone can paste any URL, and the server fetches it, so the fetcher is built to 
 
 The crawled text is passed to the model as fenced, untrusted data with an instruction to ignore anything in it addressed to an AI. This lowers the risk of a site steering its own profile; it does not eliminate it, which is one reason every profile goes to a person before it is used.
 
-`LLM_MODEL` is `"<provider>:<model>"` with `anthropic` and `openai` wired in. Token usage for each call is stored on the profile version it produced (`brand_dna.llm_usage`), which is the raw data for unit cost.
+`LLM_MODEL` is `"<provider>:<model>"` with `anthropic` and `openai` wired in. Set `LLM_MODEL_CRITIC` in the same format to run the audit pass on a smaller, cheaper model; left unset, `LLM_MODEL` does both. Token usage for each call is stored on the profile version it produced (`brand_dna.llm_usage`), which is the raw data for unit cost.
 
 ## Production trigger with n8n
 
@@ -108,7 +108,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 135 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 138 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Credit ledger**: balance tracking, overdraft aborting a transaction, append-only, idempotency keys.

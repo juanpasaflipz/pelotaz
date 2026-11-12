@@ -15,6 +15,8 @@ export interface OnboardingDeps {
   db: Db;
   fetcher: PageFetcher;
   llm: Llm;
+  /** Optional cheaper model for the critic pass. Defaults to `llm`. */
+  critic?: Llm;
 }
 
 /** Why onboarding stopped, as stored in `brands.status_detail`. The UI maps these to copy. */
@@ -58,7 +60,7 @@ export async function onboardBrand(
   brandId: string,
   options: { force?: boolean } = {},
 ): Promise<OnboardingOutcome> {
-  const { db, fetcher, llm } = deps;
+  const { db, fetcher, llm, critic } = deps;
 
   const claim = await withTenant(db, tenantId, async (tx) => {
     const startable = options.force
@@ -130,11 +132,12 @@ export async function onboardBrand(
 
   let built;
   try {
-    built = await buildBrandDna(llm, crawl, {
-      goal: brand.goal,
-      country: brand.country,
-      locale: brand.locale,
-    });
+    built = await buildBrandDna(
+      llm,
+      crawl,
+      { goal: brand.goal, country: brand.country, locale: brand.locale },
+      critic,
+    );
   } catch {
     return fail("llm_error");
   }

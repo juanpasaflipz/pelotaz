@@ -72,6 +72,19 @@ describe("onboardBrand", () => {
     expect(dna?.llmUsage[0]).toMatchObject({ model: "fake:model", inputTokens: 1200, outputTokens: 300 });
   });
 
+  it("runs the audit on the critic model when one is given", async () => {
+    const writer = createFakeLlm({ "brand_dna.build": () => FAITHFUL_DRAFT });
+    const critic = createFakeLlm({ "brand_dna.critique": () => ({ flags: [] }) });
+    const outcome = await onboardBrand(
+      { db, fetcher: createFixtureFetcher(), llm: writer, critic },
+      tenantId,
+      brandId,
+    );
+    expect(outcome.state).toBe("ready");
+    expect(writer.calls.map((c) => c.purpose)).toEqual(["brand_dna.build"]);
+    expect(critic.calls.map((c) => c.purpose)).toEqual(["brand_dna.critique"]);
+  });
+
   it("stores the crawled pages without their raw CSS and marks the brand ready", async () => {
     await onboardBrand({ db, fetcher: createFixtureFetcher(), llm: faithfulLlm() }, tenantId, brandId);
     const pages = await db.select().from(crawlPages).where(eq(crawlPages.brandId, brandId));

@@ -1,7 +1,7 @@
 import { MockLanguageModelV4 } from "ai/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { critiqueSchema } from "@/lib/brand-dna/schema";
-import { createAiSdkLlm, getLlm, LlmNotConfiguredError } from "@/lib/llm/ai-sdk";
+import { createAiSdkLlm, getCriticLlm, getLlm, LlmNotConfiguredError } from "@/lib/llm/ai-sdk";
 
 /** The adapter is exercised through the AI SDK's own mock model, so the SDK's request building and output parsing are real. */
 function mockModel(text: string) {
@@ -74,5 +74,17 @@ describe("getLlm", () => {
   it("refuses a model id without a known provider prefix", () => {
     vi.stubEnv("LLM_MODEL", "some-model");
     expect(() => getLlm()).toThrow(LlmNotConfiguredError);
+  });
+
+  it("uses the main model for review when no critic model is set", () => {
+    vi.stubEnv("LLM_MODEL", "anthropic:writer");
+    vi.stubEnv("LLM_MODEL_CRITIC", "");
+    expect(() => getCriticLlm()).not.toThrow();
+  });
+
+  it("rejects a malformed critic model instead of falling back", () => {
+    vi.stubEnv("LLM_MODEL", "anthropic:writer");
+    vi.stubEnv("LLM_MODEL_CRITIC", "small-model");
+    expect(() => getCriticLlm()).toThrow(/LLM_MODEL_CRITIC/);
   });
 });
