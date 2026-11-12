@@ -14,7 +14,7 @@ This repository is **phase 1** of the build plan: the multi-tenant foundation, s
 
 ## Setup
 
-Requires Node 22 or newer and a Postgres 16 database (Neon works).
+Requires Node 22.19 or newer (`nvm use` picks it up from `.nvmrc`; `npm install` refuses older versions) and a Postgres 16 database (Neon works).
 
 ```bash
 npm install

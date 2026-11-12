@@ -11,10 +11,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "db:seed": "tsx scripts/seed.ts",
-    "db:seed:demo": "tsx scripts/seed-demo.ts",
-    "try": "tsx scripts/try.ts"
+    "db:migrate": "node scripts/check-node.cjs && tsx scripts/migrate.ts",
+    "db:seed": "node scripts/check-node.cjs && tsx scripts/seed.ts",
+    "db:seed:demo": "node scripts/check-node.cjs && tsx scripts/seed-demo.ts",
+    "try": "node scripts/check-node.cjs && tsx scripts/try.ts",
+    "predev": "node scripts/check-node.cjs",
+    "prebuild": "node scripts/check-node.cjs",
+    "pretest": "node scripts/check-node.cjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.102",
@@ -47,6 +50,6 @@
     "vitest": "^5.1.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.19"
   }
 }
