@@ -1,26 +1,134 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Pelotaz takes its look from the frontón, the court where a pelotazo lands:
+ * a deep green wall, white painted lines, and one red stripe (the chapa) that
+ * marks a fault. Green is the brand, white lines are structure, and red is
+ * reserved for things the person has to look at. Yellow is the ball: it only
+ * appears where something is in motion or in focus.
+ */
+@theme {
+  --color-cancha: #0e5a43;
+  --color-cancha-profunda: #0a3f30;
+  --color-cal: #f2f4ef;
+  --color-raya: #ffffff;
+  --color-tinta: #13211b;
+  --color-tinta-suave: #4a5a52;
+  --color-borde: #d3dad2;
+  --color-chapa: #c8321f;
+  --color-chapa-fondo: #fbeeeb;
+  --color-pelota: #efc029;
+
+  --font-display: "Big Shoulders Variable", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-sans: "Instrument Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-cal);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  line-height: 1.5;
+}
+
+/* Condensed display type, set tight. Used for names and headings only. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.005em;
+}
+
+/* The wall: green field, a white court line, and the red chapa under it. */
+.wall {
+  background: var(--color-cancha);
+  color: var(--color-raya);
+  border-bottom: 4px solid var(--color-chapa);
+  box-shadow: inset 0 -6px 0 var(--color-raya);
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--color-pelota);
+  outline-offset: 2px;
+}
+
+.field {
+  width: 100%;
+  border: 1.5px solid var(--color-borde);
+  border-radius: 6px;
+  background: var(--color-raya);
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  color: var(--color-tinta);
+}
+.field:hover {
+  border-color: var(--color-tinta-suave);
+}
+textarea.field {
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  border-radius: 6px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.button[disabled] {
+  cursor: progress;
+  opacity: 0.7;
+}
+.button-primary {
+  background: var(--color-cancha);
+  color: var(--color-raya);
+}
+.button-primary:hover:not([disabled]) {
+  background: var(--color-cancha-profunda);
+}
+.button-on-wall {
+  background: var(--color-raya);
+  color: var(--color-cancha-profunda);
+}
+.button-on-wall:hover:not([disabled]) {
+  background: var(--color-cal);
+}
+.button-quiet {
+  border: 1.5px solid var(--color-borde);
+  background: var(--color-raya);
+  color: var(--color-tinta);
+}
+.button-quiet:hover:not([disabled]) {
+  border-color: var(--color-tinta-suave);
+}
+
+/* The ball: shown while a site is being read. It answers a state, not a page load. */
+.ball {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: var(--color-pelota);
+  flex: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ball-bouncing {
+    animation: bounce 0.9s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+  }
+}
+@keyframes bounce {
+  from {
+    transform: translateY(-0.55rem);
+  }
+  to {
+    transform: translateY(0.1rem) scaleY(0.88);
+  }
 }
