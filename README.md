@@ -24,6 +24,13 @@ npm run db:seed                 # prints AUTH_MODE and DEV_TENANT_ID for .env.lo
 npm run dev
 ```
 
+To try onboarding on a real site without setting up a database (it uses a throwaway in-process Postgres):
+
+```bash
+npm run try -- https://www.example.mx --crawl-only   # what the crawler reads; no model, no cost
+npm run try -- https://www.example.mx                # full run; needs LLM_MODEL and its API key
+```
+
 To see the profile editor without an API key or network access:
 
 ```bash
@@ -108,7 +115,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 138 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 147 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Credit ledger**: balance tracking, overdraft aborting a transaction, append-only, idempotency keys.

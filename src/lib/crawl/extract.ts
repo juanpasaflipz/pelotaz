@@ -36,6 +36,24 @@ function absolute(href: string | undefined, base: string): string | null {
   }
 }
 
+/**
+ * Image optimisers serve a resized copy: `/_next/image?url=%2Fbrand%2Flogo.png&w=96`.
+ * Later steps want the original file, not a 96-pixel rendition.
+ */
+function originalImage(src: string | null): string | null {
+  if (!src) return null;
+  try {
+    const url = new URL(src);
+    if (url.pathname === "/_next/image" || url.pathname === "/_vercel/image") {
+      const inner = url.searchParams.get("url");
+      if (inner) return absolute(inner, url.origin);
+    }
+  } catch {
+    // Fall through to the URL as given.
+  }
+  return src;
+}
+
 function collapse(text: string): string {
   return text.replace(/[ \t ]+/g, " ").replace(/\s*\n\s*/g, "\n").trim();
 }
@@ -50,7 +68,7 @@ export function extractPage(html: string, url: string, status: number): CrawledP
   const assets: PageAssets = {
     description: meta('meta[name="description"]') ?? meta('meta[property="og:description"]'),
     lang: $("html").attr("lang")?.trim() || null,
-    ogImage: absolute(meta('meta[property="og:image"]') ?? undefined, base),
+    ogImage: originalImage(absolute(meta('meta[property="og:image"]') ?? undefined, base)),
     themeColor: meta('meta[name="theme-color"]'),
     images: [],
     logoCandidates: [],
@@ -92,7 +110,9 @@ export function extractPage(html: string, url: string, status: number): CrawledP
   $("img").each((_, el) => {
     const node = $(el);
     const hint = `${node.attr("class") ?? ""} ${node.attr("id") ?? ""} ${node.attr("alt") ?? ""} ${node.attr("src") ?? ""}`;
-    if (/logo/i.test(hint)) pushLogo(absolute(node.attr("src") ?? node.attr("data-src"), base));
+    if (/logo/i.test(hint)) {
+      pushLogo(originalImage(absolute(node.attr("src") ?? node.attr("data-src"), base)));
+    }
   });
   $('link[rel="apple-touch-icon"], link[rel="apple-touch-icon-precomposed"]').each((_, el) => {
     pushLogo(absolute($(el).attr("href"), base));
@@ -105,9 +125,8 @@ export function extractPage(html: string, url: string, status: number): CrawledP
   $("img").each((_, el) => {
     if (images.length >= MAX_IMAGES) return;
     const node = $(el);
-    const src = absolute(
-      node.attr("src") ?? node.attr("data-src") ?? node.attr("data-lazy-src"),
-      base,
+    const src = originalImage(
+      absolute(node.attr("src") ?? node.attr("data-src") ?? node.attr("data-lazy-src"), base),
     );
     if (!src || /\.(svg|gif)(\?|$)/i.test(src)) return;
     const width = Number(node.attr("width"));
@@ -148,6 +167,11 @@ export function extractPage(html: string, url: string, status: number): CrawledP
   $('[aria-hidden="true"], [hidden], .cookie, .cookies, #cookie-banner').remove();
   const root = $("main").length ? $("main").first() : $("body");
   root.find("br").replaceWith("\n");
+  // Two buttons or links side by side have no whitespace between them in the
+  // markup; without this their labels fuse into one word.
+  root.find("a, button").each((_, el) => {
+    if (el.next?.type === "tag") $(el).after(" ");
+  });
   root.find("p, li, h1, h2, h3, h4, h5, h6, tr, div, section, article").each((_, el) => {
     $(el).append("\n");
   });
@@ -183,6 +207,12 @@ function normalizeHex(value: string): string | null {
   }
   if (hex.length === 6 || hex.length === 8) return `#${hex.slice(0, 6)}`;
   return null;
+}
+
+/** Lightness in HSL terms, 0 to 1. */
+function lightness(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
 }
 
 /** Saturation in HSL terms, 0 to 1. Greys, whites and blacks score near zero. */
@@ -224,7 +254,9 @@ export function extractPalette(css: string, themeColor: string | null, limit = 5
   bump(theme, 1000);
 
   const ranked = [...counts.entries()]
-    .filter(([hex]) => saturation(hex) >= 0.25)
+    // Tinted page backgrounds (cream, off-black) score as "saturated" in HSL
+    // but are not brand colors; a declared theme color is kept whatever it is.
+    .filter(([hex]) => hex === theme || (saturation(hex) >= 0.25 && lightness(hex) > 0.12 && lightness(hex) < 0.9))
     .sort((a, b) => b[1] - a[1])
     .map(([hex]) => hex);
 
@@ -246,6 +278,8 @@ export function extractFonts(css: string, googleFonts: string[], limit = 4): str
     const first = match[1].split(",")[0].replace(/!important/i, "").replace(/["']/g, "").trim();
     if (!first || first.startsWith("var(") || first.length > 60) continue;
     if (GENERIC_FONTS.has(first.toLowerCase()) || ICON_FONT.test(first)) continue;
+    // Next.js generates "<Font> Fallback" faces to hold layout while fonts load.
+    if (/ fallback$/i.test(first)) continue;
     counts.set(first, (counts.get(first) ?? 0) + 1);
   }
   return [...counts.entries()]

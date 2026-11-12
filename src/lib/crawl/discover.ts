@@ -20,8 +20,8 @@ const SKIP_PATH =
  * in the region use English slugs.
  */
 const PRIORITY: Array<[RegExp, number]> = [
-  [/\/(nosotros|quienes-somos|acerca|acerca-de|sobre|sobre-nosotros|historia|about|about-us|our-story)(\/|$)/i, 90],
-  [/\/(menu|carta|productos|producto|servicios|servicio|catalogo|tienda|products|services|shop|store|collections)(\/|$)/i, 85],
+  [/\/(nosotros|quienes-somos|acerca|acerca-de|sobre|sobre-nosotros|historia|about|about-us|our-story|story)(\/|$)/i, 90],
+  [/\/(menu|carta|productos|producto|servicios|servicio|catalogo|tienda|ingredientes|products|services|shop|store|collections|ingredients)(\/|$)/i, 85],
   [/\/(precios|planes|tarifas|paquetes|pricing|plans)(\/|$)/i, 80],
   [/\/(promociones|promos|ofertas|descuentos|offers|deals|sale)(\/|$)/i, 75],
   [/\/(preguntas-frecuentes|faq|faqs|ayuda|help)(\/|$)/i, 60],
@@ -30,13 +30,31 @@ const PRIORITY: Array<[RegExp, number]> = [
   [/\/(blog|noticias|novedades|news|articulos)(\/|$)/i, 30],
 ];
 
+const LANGUAGES = new Set(["es", "en", "pt", "fr", "de", "it", "ca"]);
+
+/**
+ * Sites that publish in several languages usually prefix the path: `/es/menu`,
+ * `/en/menu`, `/pt-br/menu`. Returns that language, or null when the first
+ * segment is not a language code.
+ */
+export function pathLanguage(pathname: string): string | null {
+  const first = pathname.split("/").filter(Boolean)[0]?.toLowerCase() ?? "";
+  const match = /^([a-z]{2})(?:-[a-z]{2})?$/.exec(first);
+  return match && LANGUAGES.has(match[1]) ? match[1] : null;
+}
+
 function score(url: URL): number {
-  if (url.pathname === "/" || url.pathname === "") return 100;
-  const depth = url.pathname.split("/").filter(Boolean).length;
+  const segments = url.pathname.split("/").filter(Boolean);
+  // A language prefix is not depth: `/es/menu` is as close to the top as `/menu`.
+  const depth = pathLanguage(url.pathname) ? segments.length - 1 : segments.length;
+  if (depth === 0) return 100;
   const base = PRIORITY.find(([pattern]) => pattern.test(url.pathname))?.[1] ?? 20;
   // A section's index says more than one item inside it; queries are usually filters.
   return base - (depth - 1) * 8 - (url.search ? 15 : 0);
 }
+
+/** Enough pages in the wanted language that the other languages are translations, not the site. */
+const MIN_PAGES_TO_PREFER_LANGUAGE = 3;
 
 export function normalizeUrl(raw: string): string | null {
   try {
@@ -59,6 +77,8 @@ export function prioritize(
   startUrl: string,
   rules: RobotsRules,
   limit: number,
+  /** Two-letter language of the content being built, e.g. "es". */
+  language?: string,
 ): string[] {
   const site = siteKey(startUrl);
   const seen = new Set<string>();
@@ -78,7 +98,20 @@ export function prioritize(
     kept.push({ url: normalized, score: score(url), order });
   });
 
-  return kept
+  // On a multilingual site, read the language we will write in. Translations
+  // of the same pages would spend the page budget twice and blur the voice.
+  let pages = kept;
+  if (language) {
+    const inLanguage = kept.filter((e) => pathLanguage(new URL(e.url).pathname) === language);
+    if (inLanguage.length >= MIN_PAGES_TO_PREFER_LANGUAGE) {
+      pages = kept.filter((e) => {
+        const lang = pathLanguage(new URL(e.url).pathname);
+        return lang === null || lang === language;
+      });
+    }
+  }
+
+  return pages
     .sort((a, b) => b.score - a.score || a.order - b.order)
     .slice(0, limit)
     .map((entry) => entry.url);
@@ -150,6 +183,7 @@ export async function discoverUrls(
   homeLinks: string[],
   rules: RobotsRules,
   limit: number,
+  language?: string,
 ): Promise<string[]> {
   const origin = new URL(startUrl).origin;
   const sitemapUrls = rules.sitemaps.length > 0 ? rules.sitemaps : [`${origin}/sitemap.xml`];
@@ -157,5 +191,5 @@ export async function discoverUrls(
 
   // Home links first: what the site chooses to put in its navigation is a
   // better signal of importance than sitemap order.
-  return prioritize([startUrl, ...homeLinks, ...fromSitemaps], startUrl, rules, limit);
+  return prioritize([startUrl, ...homeLinks, ...fromSitemaps], startUrl, rules, limit, language);
 }

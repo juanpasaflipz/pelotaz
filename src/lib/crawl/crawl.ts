@@ -8,6 +8,8 @@ export interface CrawlOptions {
   maxPages?: number;
   concurrency?: number;
   maxStylesheets?: number;
+  /** Two-letter language to prefer on multilingual sites, e.g. "es". */
+  language?: string;
 }
 
 export class CrawlError extends Error {
@@ -65,7 +67,7 @@ export async function crawlSite(
     if (!isAllowed(rules, landed.pathname)) throw new CrawlError("blocked_by_robots");
   }
 
-  const urls = await discoverUrls(fetcher, home.url, home.links, rules, maxPages);
+  const urls = await discoverUrls(fetcher, home.url, home.links, rules, maxPages, options.language);
 
   const homePath = new URL(home.url).pathname;
   const remaining = urls.filter((url) => new URL(url).pathname !== homePath).slice(0, maxPages - 1);

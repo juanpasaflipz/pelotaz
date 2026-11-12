@@ -103,7 +103,9 @@ export async function onboardBrand(
 
   let crawl: CrawlResult;
   try {
-    crawl = await crawlSite(fetcher, brand.sourceUrl);
+    crawl = await crawlSite(fetcher, brand.sourceUrl, {
+      language: brand.locale.slice(0, 2).toLowerCase(),
+    });
   } catch (error) {
     return fail(failureOf(error));
   }
