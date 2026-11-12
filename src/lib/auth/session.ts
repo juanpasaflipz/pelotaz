@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { systemDb } from "@/db/client";
 import { parseAllowlist, resolveAccess, type Access } from "./access";
 import { isNeonAuthConfigured, neonAuth } from "./neon";
@@ -32,6 +33,10 @@ export type RequestAccess = Access | { kind: "signed_out" };
  */
 export async function getAccess(): Promise<RequestAccess> {
   if (isNeonAuthConfigured()) {
+    // Reading the session needs the request's cookies. Wait for a real request
+    // first: during the build's prerender there is none, and the auth SDK
+    // would log an error for every page while it found that out.
+    await connection();
     const { data } = await neonAuth().getSession();
     const user = data?.user;
     if (!user) return { kind: "signed_out" };
