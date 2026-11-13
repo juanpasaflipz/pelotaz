@@ -149,6 +149,7 @@ async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "para
                 pillar={brief.pillar}
                 topic={brief.topic}
                 offerName={brief.offerName}
+                occasion={brief.occasion?.name ?? null}
                 draft={
                   draft && {
                     version: draft.version,

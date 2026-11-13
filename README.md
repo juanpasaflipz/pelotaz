@@ -73,6 +73,7 @@ src/
     brand-dna/       profile schema, build + critique + price check, service
     content/         weekly plan, post drafts, checks, approval
     learning/        profile changes proposed from the owner's edits
+    calendar/        holidays and commercial dates per country, for the planner
     llm/             one small interface; AI SDK adapter behind it
     onboarding/      trigger: in-process locally, n8n in production
     auth/            Neon Auth client, access rules, and the session seam
@@ -138,7 +139,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 205 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 212 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.
@@ -146,6 +147,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 - **URL guard and fetcher**: 28 unsafe URL forms, redirects into private space, a hostname that resolves inward at connect time, size cap, content type, charset.
 - **Crawler**: page priority, `robots.txt`, sitemaps, failures, palette, fonts, logo, social links.
 - **Brand DNA**: the full onboarding run, invented prices being flagged, critic failure, model failure, thin sites, concurrent triggers, retries, edits and versions.
+- **Calendar**: Easter and nth-weekday rules, each market's own dates, paydays, year boundaries, only calendar dates reaching a plan.
 - **Learning from edits**: proposals limited to changes that apply, stale or duplicate changes skipped, applied versions marked as feedback, no model call when there is nothing new, tenant isolation.
 - **Weekly plan and approval**: invented offers dropped, one post per slot, invented prices and banned words flagged, a failed draft not sinking the plan, double triggers, re-planning never discarding approved posts, owner edits as checked versions, rewrites, photos from another brand refused, tenant isolation.
 
@@ -160,7 +162,7 @@ The suite also passes against Postgres 16 with a non-superuser owner role.
 - **Plan-based limits.** Each tenant has a ceiling on brands and on onboarding runs per day (`MAX_BRANDS_PER_TENANT`, `ONBOARDINGS_PER_DAY`). These are safety limits, not entitlements tied to a paid plan.
 - **The weekly plan has been run with test models only.** Run `npm run try -- <site> --week` with a real key before relying on it.
 - **Photos are picked by description and file name** when the week is planned, each at most once. The model does not see them; the owner can swap the photo on each post.
-- **No calendar.** Plans do not mention holidays or events, on purpose, until a per-country calendar exists.
+- **Calendar coverage.** Plans may mention only dates from `src/lib/calendar/calendar.ts`: national holidays, main commercial dates and, in Mexico, the quincena paydays, for each market. Dates that change every year (El Buen Fin, the Super Bowl) are entered by hand per year with their source; Liga MX and other sports are not in yet.
 - **Publishing**: approved posts are copied out by hand. Meta (Instagram, Facebook) publishing needs app review.
 - **Later phases**: channel adapters, metrics, suggestions, generated images, video, billing, WhatsApp, local payments.
 - **English UI.** Strings are externalised in `src/i18n/es.ts`; only Spanish exists.

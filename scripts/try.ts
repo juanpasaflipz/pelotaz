@@ -160,6 +160,7 @@ async function tryWeek(
     console.log(`--- ${brief.date} · ${item.channel} ${item.format} · ${brief.pillar} · ${item.status}`);
     console.log(`Topic: ${brief.topic}${brief.offerName ? `  [offer: ${brief.offerName}]` : ""}`);
     console.log(`Angle: ${brief.angle}`);
+    if (brief.occasion) console.log(`Occasion: ${brief.occasion.name} (${brief.occasion.date})`);
     console.log(`Photo: ${image ? `${image.url}${image.alt ? ` ("${image.alt}")` : ""}` : "(none)"}\n`);
     console.log(draft ? draft.copy : "(no draft)");
     for (const flag of draft?.reviewFlags ?? []) console.log(`  ! [${flag.source}] ${flag.claim}: ${flag.reason}`);

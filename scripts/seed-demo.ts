@@ -50,9 +50,9 @@ async function main() {
       "content.plan": () => ({
         rationale: "Dos publicaciones para vender entre semana y una de barrio para el sábado.",
         posts: [
-          { day: "tue", channel: "instagram", format: "post", pillar: "promotion", topic: "Martes de 2x1 al pastor", angle: "El martes rinde el doble.", offerName: "Taco al pastor", callToAction: "Pide a domicilio", imageNumber: 1 },
-          { day: "thu", channel: "instagram", format: "story", pillar: "product", topic: "Arrachera al mezquite", angle: "El carbón es la receta.", offerName: "Taco de arrachera", callToAction: "Pide hoy", imageNumber: 2 },
-          { day: "sat", channel: "facebook", pillar: "community", format: "post", topic: "Sábado en Chapultepec", angle: "La taquería del barrio.", offerName: null, callToAction: "Ven por tus tacos", imageNumber: null },
+          { day: "tue", channel: "instagram", format: "post", pillar: "promotion", topic: "Martes de 2x1 al pastor", angle: "El martes rinde el doble.", offerName: "Taco al pastor", callToAction: "Pide a domicilio", imageNumber: 1, occasion: null },
+          { day: "thu", channel: "instagram", format: "story", pillar: "product", topic: "Arrachera al mezquite", angle: "El carbón es la receta.", offerName: "Taco de arrachera", callToAction: "Pide hoy", imageNumber: 2, occasion: null },
+          { day: "sat", channel: "facebook", pillar: "community", format: "post", topic: "Sábado en Chapultepec", angle: "La taquería del barrio.", offerName: null, callToAction: "Ven por tus tacos", imageNumber: null, occasion: null },
         ],
       }),
       "content.draft": (request) =>

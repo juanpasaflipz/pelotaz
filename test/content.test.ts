@@ -44,6 +44,7 @@ const post = (overrides: Partial<PlannedPost> = {}): PlannedPost => ({
   offerName: "Taco al pastor",
   callToAction: "Pide hoy",
   imageNumber: null,
+  occasion: null,
   ...overrides,
 });
 
@@ -141,6 +142,16 @@ describe("plan and copy rules", () => {
     expect(plan.posts.map((p) => p.imageNumber)).toEqual([2, null, null, null]);
   });
 
+  it("keeps only occasions from the calendar", () => {
+    const plan = normalizePlan(
+      { rationale: "", posts: [post({ day: "mon", occasion: "el buen fin" }), post({ day: "tue", occasion: "Black Friday" })] },
+      [],
+      0,
+      ["El Buen Fin"],
+    );
+    expect(plan.posts.map((p) => p.occasion)).toEqual(["El Buen Fin", null]);
+  });
+
   it("caps the week at seven posts", () => {
     const many = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].flatMap((day) =>
       (["instagram", "facebook"] as const).map((channel) => post({ day: day as PlannedPost["day"], channel })),
@@ -215,6 +226,7 @@ describe("weekly plan", () => {
     expect(planCall.prompt).toContain("Taco al pastor");
     expect(planCall.instructions).toContain("Never invent discounts");
     expect(planCall.prompt).toContain("tacos-arrachera.jpg");
+    expect(planCall.prompt).toContain("Calendar (the only dates you may use):");
     // The draft is told which photo it goes with.
     const draftCall = llm.calls.find((call) => call.purpose === "content.draft" && call.prompt.includes("Martes de 2x1"))!;
     expect(draftCall.prompt).toContain(`The post's photo: `);

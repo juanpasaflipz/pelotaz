@@ -51,6 +51,10 @@ export const plannedPostSchema = z.object({
     .int()
     .nullable()
     .describe("Number of the photo from the list that this post uses, or null if none fits. Each photo at most once a week."),
+  occasion: z
+    .string()
+    .nullable()
+    .describe("Exact name of the calendar date this post is tied to, or null."),
 });
 export type PlannedPost = z.infer<typeof plannedPostSchema>;
 
@@ -88,6 +92,8 @@ export interface PostBrief {
   callToAction: string;
   /** The photo chosen when the week was planned, as an asset id. */
   imageAssetId?: string | null;
+  /** The calendar date the post is tied to. */
+  occasion?: { name: string; date: string; endDate?: string; note: string } | null;
 }
 
 export const PLAN_LIMITS = {
@@ -111,7 +117,13 @@ const clamp = (value: string, max: number) => value.trim().replace(/\s+/g, " ").
  * Bound and tidy a model plan: at most one post per day and channel, offers
  * that exist in the profile, and the plan's own length limits.
  */
-export function normalizePlan(plan: WeekPlan, offerNames: string[], imageCount = 0): WeekPlan {
+export function normalizePlan(
+  plan: WeekPlan,
+  offerNames: string[],
+  imageCount = 0,
+  occasionNames: string[] = [],
+): WeekPlan {
+  const occasions = new Map(occasionNames.map((name) => [name.trim().toLowerCase(), name]));
   const byName = new Map(offerNames.map((name) => [name.trim().toLowerCase(), name]));
   const seen = new Set<string>();
   const usedImages = new Set<number>();
@@ -136,6 +148,8 @@ export function normalizePlan(plan: WeekPlan, offerNames: string[], imageCount =
       // A name the profile does not have is the model inventing a product.
       offerName: post.offerName ? (byName.get(post.offerName.trim().toLowerCase()) ?? null) : null,
       imageNumber,
+      // Only dates from the calendar; anything else is the model's own idea of the week.
+      occasion: post.occasion ? (occasions.get(post.occasion.trim().toLowerCase()) ?? null) : null,
     });
     if (posts.length === PLAN_LIMITS.maxPosts) break;
   }

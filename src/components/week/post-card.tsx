@@ -16,6 +16,7 @@ export interface PostCardProps {
   pillar: string;
   topic: string;
   offerName: string | null;
+  occasion: string | null;
   draft: {
     version: number;
     copy: string;
@@ -97,6 +98,7 @@ export function PostCard(props: PostCardProps) {
       <p className="text-sm text-tinta-suave">
         {t.pillars[props.pillar] ?? props.pillar}
         {props.offerName ? ` · ${t.feature(props.offerName)}` : ""}
+        {props.occasion ? ` · ${props.occasion}` : ""}
       </p>
 
       {working && (

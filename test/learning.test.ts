@@ -40,8 +40,8 @@ const PROFILE = {
 const PLAN = {
   rationale: "Semana de prueba.",
   posts: [
-    { day: "tue", channel: "instagram", format: "post", pillar: "promotion", topic: "Martes de 2x1", angle: "x", offerName: "Taco al pastor", callToAction: "Pide", imageNumber: null },
-    { day: "thu", channel: "instagram", format: "post", pillar: "offer", topic: "Arrachera", angle: "x", offerName: "Taco de arrachera", callToAction: "Pide", imageNumber: null },
+    { day: "tue", channel: "instagram", format: "post", pillar: "promotion", topic: "Martes de 2x1", angle: "x", offerName: "Taco al pastor", callToAction: "Pide", imageNumber: null, occasion: null },
+    { day: "thu", channel: "instagram", format: "post", pillar: "offer", topic: "Arrachera", angle: "x", offerName: "Taco de arrachera", callToAction: "Pide", imageNumber: null, occasion: null },
   ],
 };
 
