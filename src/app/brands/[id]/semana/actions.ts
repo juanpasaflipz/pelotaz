@@ -13,6 +13,9 @@ import {
 } from "@/lib/content/service";
 import { triggerPlan, triggerRewrite } from "@/lib/content/trigger";
 import { isUuid } from "@/lib/ids";
+import { ProfileValidationError } from "@/lib/brand-dna/service";
+import { decideProposal, proposeFromEdits } from "@/lib/learning/service";
+import { getLlm } from "@/lib/llm/ai-sdk";
 
 async function requireSession() {
   const session = await getSession();
@@ -65,4 +68,56 @@ export async function rewriteAction(itemId: string, instruction: string): Promis
   if (result.ok) triggerRewrite(session.tenantId, itemId);
   refresh();
   return result;
+}
+
+export type LearnActionResult =
+  | { ok: true; state: "proposed" | "nothing_to_learn" }
+  | { ok: false; error: "daily_limit" | "no_profile" | "invalid" | "model" };
+
+/** Read the owner's edits and propose profile changes. One model call; waits for it. */
+export async function learnAction(brandId: string): Promise<LearnActionResult> {
+  const session = await requireSession();
+  if (!isUuid(brandId)) return { ok: false, error: "invalid" };
+  try {
+    const outcome = await proposeFromEdits(systemDb(), getLlm(), session.tenantId, brandId, contentLimitsFromEnv());
+    refresh();
+    if (outcome.state === "proposed" || outcome.state === "nothing_to_learn") return { ok: true, state: outcome.state };
+    return { ok: false, error: outcome.state };
+  } catch (error) {
+    console.error("learning failed", { brandId, error: error instanceof Error ? error.message : error });
+    return { ok: false, error: "model" };
+  }
+}
+
+export type DecideActionResult =
+  | { ok: true; state: "applied"; version: number; skipped: number }
+  | { ok: true; state: "dismissed" }
+  | { ok: false; error: "not_found" | "invalid" | "profile" };
+
+export async function decideProposalAction(
+  brandId: string,
+  suggestionId: string,
+  decision: number[] | "dismiss",
+): Promise<DecideActionResult> {
+  const session = await requireSession();
+  if (!isUuid(brandId) || !isUuid(suggestionId)) return { ok: false, error: "invalid" };
+  if (decision !== "dismiss" && (!Array.isArray(decision) || decision.some((n) => !Number.isInteger(n)))) {
+    return { ok: false, error: "invalid" };
+  }
+  try {
+    const outcome = await decideProposal(
+      systemDb(),
+      session.tenantId,
+      brandId,
+      suggestionId,
+      decision === "dismiss" ? "dismiss" : { apply: decision },
+    );
+    refresh();
+    if (outcome.state === "applied") return { ok: true, state: "applied", version: outcome.version, skipped: outcome.skipped };
+    if (outcome.state === "dismissed") return { ok: true, state: "dismissed" };
+    return { ok: false, error: "not_found" };
+  } catch (error) {
+    if (error instanceof ProfileValidationError) return { ok: false, error: "profile" };
+    throw error;
+  }
 }

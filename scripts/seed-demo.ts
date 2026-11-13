@@ -61,7 +61,7 @@ async function main() {
           : { caption: "Martes de 2x1 en tacos al pastor 🌮\nDe 6 a 10 pm. Taco al pastor a $24.\nPide a domicilio.", hashtags: ["tacos", "Guadalajara"] },
       "content.critique": () => ({ flags: [] }),
     });
-    const plan = await requestPlan(db, tenantId, brandId, { plansPerDay: 99, rewritesPerDay: 99 });
+    const plan = await requestPlan(db, tenantId, brandId, { plansPerDay: 99, rewritesPerDay: 99, learnPerDay: 99 });
     if (plan.state === "started") {
       console.log("Demo week:", await runPlan({ db, llm: writer }, tenantId, plan.planId), `\nOpen /brands/${brandId}/semana`);
     }

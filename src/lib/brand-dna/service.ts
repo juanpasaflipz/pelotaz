@@ -216,6 +216,11 @@ export async function saveProfileEdit(
   tenantId: string,
   brandId: string,
   input: unknown,
+  options: {
+    source?: "user_edit" | "feedback";
+    /** Runs in the same transaction after the version is written. */
+    onSaved?: (tx: Tx, version: number) => Promise<void>;
+  } = {},
 ): Promise<{ version: number } | null> {
   // The person editing reads Spanish; report what is wrong in Spanish.
   const parsed = brandDnaProfileSchema.safeParse(input, { error: zodEs().localeError });
@@ -245,9 +250,10 @@ export async function saveProfileEdit(
       brandId,
       version,
       profile,
-      source: "user_edit",
+      source: options.source ?? "user_edit",
       reviewFlags: [],
     });
+    await options.onSaved?.(tx, version);
     // Goal, market and locale live on the brand row; keep it in step.
     await tx
       .update(brands)

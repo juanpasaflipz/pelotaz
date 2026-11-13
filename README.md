@@ -14,6 +14,7 @@ This repository covers **phase 1** (the multi-tenant foundation, site crawling, 
 6. **Plan de la semana**: the model proposes 3 to 7 posts for the coming week (day, channel, pillar, featured offer) from the profile, then writes each one in the brand's voice and picks a photo from the brand's own site.
 7. Every post is checked like the profile: prices in code against the site and the profile, banned words in code, and a second model pass for claims the profile does not support. The owner's own edits get the code checks too.
 8. The owner edits, approves, rejects or asks for a rewrite ("más corto, sin emojis"). Approved posts are copied out by hand for now; nothing is published automatically.
+9. **Aprende de tus cambios**: Pelotaz compares the drafts with the owner's edits and proposes profile changes: facts they corrected (a price, a recipe, the rating) and style they changed the same way in two or more posts. The owner ticks which to apply; applied changes become a new profile version marked "ajustada con tus comentarios". The model can only propose from a fixed set of operations, which code applies, so it cannot rewrite anything it does not show.
 
 ## Setup
 
@@ -71,6 +72,7 @@ src/
     crawl/           URL guard, guarded fetcher, robots, discovery, extraction
     brand-dna/       profile schema, build + critique + price check, service
     content/         weekly plan, post drafts, checks, approval
+    learning/        profile changes proposed from the owner's edits
     llm/             one small interface; AI SDK adapter behind it
     onboarding/      trigger: in-process locally, n8n in production
     auth/            Neon Auth client, access rules, and the session seam
@@ -136,7 +138,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 197 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 205 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.
@@ -144,6 +146,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 - **URL guard and fetcher**: 28 unsafe URL forms, redirects into private space, a hostname that resolves inward at connect time, size cap, content type, charset.
 - **Crawler**: page priority, `robots.txt`, sitemaps, failures, palette, fonts, logo, social links.
 - **Brand DNA**: the full onboarding run, invented prices being flagged, critic failure, model failure, thin sites, concurrent triggers, retries, edits and versions.
+- **Learning from edits**: proposals limited to changes that apply, stale or duplicate changes skipped, applied versions marked as feedback, no model call when there is nothing new, tenant isolation.
 - **Weekly plan and approval**: invented offers dropped, one post per slot, invented prices and banned words flagged, a failed draft not sinking the plan, double triggers, re-planning never discarding approved posts, owner edits as checked versions, rewrites, photos from another brand refused, tenant isolation.
 
 The suite also passes against Postgres 16 with a non-superuser owner role.

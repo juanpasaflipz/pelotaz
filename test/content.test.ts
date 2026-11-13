@@ -32,7 +32,7 @@ let tenantId: string;
 let otherTenantId: string;
 let profile: BrandDnaProfile;
 
-const LIMITS: ContentLimits = { plansPerDay: 50, rewritesPerDay: 50 };
+const LIMITS: ContentLimits = { plansPerDay: 50, rewritesPerDay: 50, learnPerDay: 50 };
 
 const post = (overrides: Partial<PlannedPost> = {}): PlannedPost => ({
   day: "tue",
@@ -307,7 +307,7 @@ describe("weekly plan", () => {
 
     const limitedTenant = await createTenant(db, "Limitada");
     const brandId = await readyBrand(limitedTenant);
-    const tight = { plansPerDay: 1, rewritesPerDay: 1 };
+    const tight = { plansPerDay: 1, rewritesPerDay: 1, learnPerDay: 1 };
     expect((await requestPlan(db, limitedTenant, brandId, tight)).state).toBe("started");
     await db.update(plans).set({ status: "failed" }).where(eq(plans.brandId, brandId));
     expect(await requestPlan(db, limitedTenant, brandId, tight)).toEqual({ state: "daily_limit" });

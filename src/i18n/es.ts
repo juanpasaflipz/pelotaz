@@ -224,6 +224,54 @@ export const es = {
       invalid: "Revisa lo que elegiste e intenta de nuevo.",
     } as Record<string, string>,
   },
+  learning: {
+    title: "Aprende de tus cambios",
+    lead: (n: number) =>
+      n === 1
+        ? "Editaste 1 publicación. Pelotaz puede revisar qué cambiaste y proponer ajustes al perfil de tu marca para que las próximas salgan mejor."
+        : `Editaste ${n} publicaciones. Pelotaz puede revisar qué cambiaste y proponer ajustes al perfil de tu marca para que las próximas salgan mejor.`,
+    run: "Revisar mis cambios",
+    running: "Revisando tus cambios",
+    proposalTitle: "Cambios propuestos al perfil",
+    proposalLead: "Desmarca los que no quieras. Nada cambia hasta que apliques.",
+    apply: (n: number) => (n === 1 ? "Aplicar 1 cambio" : `Aplicar ${n} cambios`),
+    dismiss: "Descartar",
+    applied: (version: number, skipped: number) =>
+      skipped > 0
+        ? `Perfil actualizado (versión ${version}). ${skipped} ${skipped === 1 ? "cambio ya no aplicaba" : "cambios ya no aplicaban"}.`
+        : `Perfil actualizado (versión ${version}). Las próximas publicaciones lo usan.`,
+    dismissed: "Propuesta descartada.",
+    nothing: "Tus cambios fueron de redacción; no hay nada que ajustar en el perfil.",
+    nothingNew: "No hay cambios nuevos que revisar.",
+    evidence: "Lo que cambiaste",
+    ops: { add: "Agregar", remove: "Quitar", replace: "Cambiar" } as Record<string, string>,
+    targets: {
+      "voice.tone": "Tono",
+      "voice.exampleSentences": "Frases de ejemplo",
+      "voice.bannedWords": "Palabras que no usa",
+      "voice.emojiUse": "Uso de emojis",
+      "voice.sentenceLength": "Largo de las frases",
+      "voice.readingLevel": "Nivel de lectura",
+      "audience.pains": "Problemas que resuelve",
+      "audience.buyingTriggers": "Qué los lleva a comprar",
+      "audience.objections": "Dudas frecuentes",
+      "rules.neverClaim": "Lo que nunca debe afirmar",
+      "rules.constraints": "Restricciones del giro",
+      promotions: "Promociones vigentes",
+      "business.summary": "Resumen del negocio",
+      "offer.proofPoints": "Pruebas o datos de respaldo",
+      "offer.description": "Descripción",
+      "offer.price": "Precio",
+    } as Record<string, string>,
+    errors: {
+      daily_limit: "Llegaste al máximo de revisiones por hoy. Intenta mañana.",
+      no_profile: "Primero termina el perfil de tu marca.",
+      not_found: "Esta propuesta ya no está disponible.",
+      invalid: "Revisa lo que elegiste e intenta de nuevo.",
+      model: "No pudimos revisar tus cambios. Intenta de nuevo.",
+      profile: "El perfil quedaría con datos inválidos; no se aplicó.",
+    } as Record<string, string>,
+  },
   limits: {
     brand_limit: "Llegaste al máximo de marcas de tu cuenta.",
     daily_limit: "Llegaste al máximo de lecturas de sitio por hoy. Intenta mañana.",

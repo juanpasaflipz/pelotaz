@@ -142,7 +142,7 @@ async function tryWeek(
   brandId: string,
   models: { llm: ReturnType<typeof getLlm>; critic: ReturnType<typeof getLlm> },
 ) {
-  const request = await requestPlan(db, tenantId, brandId, { plansPerDay: 10, rewritesPerDay: 10 });
+  const request = await requestPlan(db, tenantId, brandId, { plansPerDay: 10, rewritesPerDay: 10, learnPerDay: 10 });
   if (request.state !== "started") {
     console.error(`Plan not started: ${request.state}`);
     return;

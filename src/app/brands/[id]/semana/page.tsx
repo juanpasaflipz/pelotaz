@@ -6,6 +6,9 @@ import { SetupNotice } from "@/components/setup-notice";
 import { PlanButton } from "@/components/week/plan-button";
 import { PlanProgress } from "@/components/week/plan-progress";
 import { PostCard } from "@/components/week/post-card";
+import { LearningPanel } from "@/components/week/learning-panel";
+import { currentValue } from "@/lib/learning/changes";
+import { hasNewEdits, pendingProposal } from "@/lib/learning/service";
 import { systemDb } from "@/db/client";
 import { es } from "@/i18n/es";
 import { getAccessOrSetup } from "@/lib/auth/session";
@@ -46,7 +49,11 @@ async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "para
   const data = await getBrandWithDna(access.tenantId, id);
   if (!data) notFound();
   const { brand } = data;
-  const week = await latestWeek(systemDb(), access.tenantId, brand.id);
+  const [week, newEdits, proposal] = await Promise.all([
+    latestWeek(systemDb(), access.tenantId, brand.id),
+    hasNewEdits(systemDb(), access.tenantId, brand.id),
+    pendingProposal(systemDb(), access.tenantId, brand.id),
+  ]);
 
   const drafting = week?.items.filter(({ item }) => item.status === "drafting").length ?? 0;
   const running = week && (["queued", "planning", "drafting"].includes(week.plan.status) || drafting > 0);
@@ -91,6 +98,26 @@ async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "para
           </div>
         </div>
       )}
+
+      <LearningPanel
+        brandId={brand.id}
+        newEdits={newEdits}
+        proposal={
+          proposal && {
+            id: proposal.id,
+            summary: proposal.summary,
+            changes: proposal.changes.map((change) => ({
+              target: change.target,
+              op: change.op,
+              offerName: change.offerName,
+              before: change.op === "add" ? null : currentValue(proposal.profile, change),
+              after: change.op === "remove" ? null : change.newValue,
+              reason: change.reason,
+              evidence: change.evidence,
+            })),
+          }
+        }
+      />
 
       {week && week.plan.rationale && (
         <section className="mt-8 border-l-4 border-pelota bg-raya px-5 py-4">

@@ -17,6 +17,7 @@ export interface ContentDeps {
 export interface ContentLimits {
   plansPerDay: number;
   rewritesPerDay: number;
+  learnPerDay: number;
 }
 
 const positive = (raw: string | undefined, fallback: number) => {
@@ -28,6 +29,7 @@ export function contentLimitsFromEnv(): ContentLimits {
   return {
     plansPerDay: positive(process.env.PLANS_PER_DAY, 6),
     rewritesPerDay: positive(process.env.REWRITES_PER_DAY, 40),
+    learnPerDay: positive(process.env.LEARN_PER_DAY, 5),
   };
 }
 
@@ -49,11 +51,11 @@ async function lockTenant(tx: TenantTx, tenantId: string) {
 }
 
 /** Count and record a paid run of `kind`; null when there was room. */
-async function claimRun(
+export async function claimRun(
   tx: TenantTx,
   tenantId: string,
   brandId: string,
-  kind: "plan" | "rewrite",
+  kind: "plan" | "rewrite" | "learn",
   perDay: number,
 ): Promise<"daily_limit" | null> {
   await lockTenant(tx, tenantId);
