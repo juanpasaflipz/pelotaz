@@ -135,7 +135,7 @@ The crawled text is passed to the model as fenced, untrusted data with an instru
 Off until these are set: `META_APP_ID`, `META_APP_SECRET`, `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`), and `APP_URL` (on Vercel the production address is used when it is unset). Optional: `META_LOGIN_CONFIG_ID` for Facebook Login for Business.
 
 1. **Meta app.** In developers.facebook.com create an app of type *Business*, add *Facebook Login for Business* and *Instagram* (API with Facebook Login). Valid OAuth redirect URI: `https://www.pelotaz.com/api/connect/meta/callback`.
-2. **Permissions.** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `business_management`, `instagram_basic`, `instagram_content_publish`. While the app is in development mode they work for people with a role on the app; customers need *Advanced access*, which needs Meta's App Review and Business Verification.
+2. **Permissions.** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`. While the app is in development mode they work for people with a role on the app; customers need *Advanced access*, which needs Meta's App Review and Business Verification.
 3. **Accounts.** The Instagram account must be a professional (business or creator) account linked to the Facebook Page.
 4. **Scheduler.** Call `POST /api/cron/publish` every 5 to 15 minutes with the header `Authorization: Bearer <INTERNAL_API_SECRET>`. An n8n *Schedule Trigger* plus *HTTP Request* node does it. (Vercel Cron on the Hobby plan only runs daily, which is too coarse.)
 
