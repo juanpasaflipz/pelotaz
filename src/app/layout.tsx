@@ -37,6 +37,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         {children}
+        <footer className="mx-auto flex max-w-4xl gap-5 px-5 pb-10 text-sm text-tinta-suave">
+          <Link href="/privacidad" className="underline-offset-4 hover:underline">
+            Aviso de privacidad
+          </Link>
+          <Link href="/terminos" className="underline-offset-4 hover:underline">
+            Términos
+          </Link>
+        </footer>
       </body>
     </html>
   );

@@ -16,7 +16,17 @@ export default function proxy(request: NextRequest) {
     loginUrl: "/auth/sign-in",
     // /api/internal and /api/cron are called by schedulers with their own secret;
     // /api/media is fetched by Meta's servers when a post is published.
-    publicRoutes: ["/auth/sign-in", "/auth/sign-up", "/api/internal", "/api/cron", "/api/media"],
+    // The legal pages must be readable by anyone, Meta's reviewers included.
+    publicRoutes: [
+      "/auth/sign-in",
+      "/auth/sign-up",
+      "/api/internal",
+      "/api/cron",
+      "/api/media",
+      "/privacidad",
+      "/terminos",
+      "/eliminar-datos",
+    ],
   });
   return guard(request);
 }
