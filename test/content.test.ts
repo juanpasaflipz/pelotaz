@@ -340,7 +340,8 @@ describe("approval", () => {
       assetId: image.id,
       decision: "approve",
     });
-    expect(result).toEqual({ ok: true });
+    // Nothing is connected, so approval does not schedule.
+    expect(result).toEqual({ ok: true, scheduled: false });
 
     const versions = await db.select().from(drafts).where(eq(drafts.contentItemId, item.id));
     expect(versions.map((v) => [v.version, v.source])).toEqual([
@@ -368,6 +369,7 @@ describe("approval", () => {
 
     expect(await saveItem(db, tenantId, second.item.id, { copy: "", assetId: null, decision: "reject" })).toEqual({
       ok: true,
+      scheduled: false,
     });
     expect(await saveItem(db, tenantId, second.item.id, { copy: " ", assetId: null, decision: "approve" })).toEqual({
       ok: false,

@@ -7,6 +7,11 @@ import { PlanButton } from "@/components/week/plan-button";
 import { PlanProgress } from "@/components/week/plan-progress";
 import { PostCard } from "@/components/week/post-card";
 import { LearningPanel } from "@/components/week/learning-panel";
+import { ChannelsPanel } from "@/components/week/channels-panel";
+import { DEFAULT_PUBLISH_TIME } from "@/lib/content/service";
+import { timeZoneOf, utcToLocalTime } from "@/lib/markets";
+import { isPublishingConfigured } from "@/lib/publishing/runtime";
+import { latestPublications, listConnections } from "@/lib/publishing/service";
 import { currentValue } from "@/lib/learning/changes";
 import { hasNewEdits, pendingProposal } from "@/lib/learning/service";
 import { systemDb } from "@/db/client";
@@ -30,18 +35,19 @@ const weekLabel = (date: string) =>
     new Date(`${date}T00:00:00Z`),
   );
 
-export default function WeekPage({ params }: PageProps<"/brands/[id]/semana">) {
+export default function WeekPage({ params, searchParams }: PageProps<"/brands/[id]/semana">) {
   return (
     <main className="mx-auto max-w-4xl px-5 pb-24 pt-8">
       <Suspense fallback={<div className="mt-6 h-40 rounded bg-borde/50" aria-hidden />}>
-        <WeekView params={params} />
+        <WeekView params={params} searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "params">) {
+async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/semana">, "params" | "searchParams">) {
   const { id } = await params;
+  const metaResult = (await searchParams).meta;
   const access = await getAccessOrSetup();
   if (access.kind === "setup") return <SetupNotice />;
   if (access.kind === "signed_out") redirect("/auth/sign-in");
@@ -49,11 +55,29 @@ async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "para
   const data = await getBrandWithDna(access.tenantId, id);
   if (!data) notFound();
   const { brand } = data;
-  const [week, newEdits, proposal] = await Promise.all([
+  const publishing = isPublishingConfigured();
+  const [week, newEdits, proposal, connections] = await Promise.all([
     latestWeek(systemDb(), access.tenantId, brand.id),
     hasNewEdits(systemDb(), access.tenantId, brand.id),
     pendingProposal(systemDb(), access.tenantId, brand.id),
+    publishing ? listConnections(systemDb(), access.tenantId, brand.id) : Promise.resolve([]),
   ]);
+  const published = await latestPublications(
+    systemDb(),
+    access.tenantId,
+    week?.items.map(({ item }) => item.id) ?? [],
+  );
+  const connectedChannels = new Set(connections.filter((c) => c.status === "active").map((c) => c.channel as string));
+  const whenLabel = (instant: Date) =>
+    new Intl.DateTimeFormat("es-MX", {
+      timeZone: timeZoneOf(brand.country),
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).format(instant);
 
   const drafting = week?.items.filter(({ item }) => item.status === "drafting").length ?? 0;
   const running = week && (["queued", "planning", "drafting"].includes(week.plan.status) || drafting > 0);
@@ -97,6 +121,14 @@ async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "para
             <PlanButton brandId={brand.id} label={t.retry} primary />
           </div>
         </div>
+      )}
+
+      {publishing && brand.status === "ready" && (
+        <ChannelsPanel
+          brandId={brand.id}
+          connections={connections}
+          result={typeof metaResult === "string" ? metaResult : null}
+        />
       )}
 
       <LearningPanel
@@ -160,6 +192,13 @@ async function WeekView({ params }: Pick<PageProps<"/brands/[id]/semana">, "para
                   }
                 }
                 images={week.images}
+                publishing={{
+                  connected: connectedChannels.has(item.channel),
+                  scheduledLabel: item.scheduledAt ? whenLabel(item.scheduledAt) : null,
+                  time: item.scheduledAt ? utcToLocalTime(item.scheduledAt, brand.country) : DEFAULT_PUBLISH_TIME,
+                  permalink: published.get(item.id)?.permalink ?? null,
+                  error: published.get(item.id)?.error ?? null,
+                }}
               />
             ))}
           </div>

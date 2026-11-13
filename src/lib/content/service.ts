@@ -3,7 +3,8 @@ import { assets, brandDna, brands, contentItems, crawlPages, drafts, jobs, plans
 import { withTenant, type Db, type TenantTx } from "@/db/tenant";
 import type { BrandDnaProfile, ReviewFlag } from "@/lib/brand-dna/schema";
 import type { Llm } from "@/lib/llm/types";
-import { localDate } from "@/lib/markets";
+import { localDate, localToUtc } from "@/lib/markets";
+import { activeConnection } from "@/lib/publishing/service";
 import { checkCopy, planWeek, writeDraft } from "./build";
 import { nextWeekStart, PLAN_LIMITS, type CandidateImage, type PostBrief } from "./schema";
 
@@ -363,10 +364,25 @@ export async function runPlan(deps: ContentDeps, tenantId: string, planId: strin
   return { state: "ready", posts: items.length, drafted };
 }
 
+/** Lunch time: when a restaurant's followers are deciding what to eat. Owners can change it per post. */
+export const DEFAULT_PUBLISH_TIME = "12:30";
+
+/** Move a scheduled post to now; the next scheduler run (or the caller) publishes it. */
+export async function publishNow(db: Db, tenantId: string, itemId: string): Promise<boolean> {
+  return withTenant(db, tenantId, async (tx) => {
+    const updated = await tx
+      .update(contentItems)
+      .set({ scheduledAt: new Date() })
+      .where(and(eq(contentItems.id, itemId), eq(contentItems.status, "scheduled")))
+      .returning({ id: contentItems.id });
+    return updated.length > 0;
+  });
+}
+
 export type ItemError = "not_found" | "not_editable" | "empty" | "daily_limit" | "busy";
 
 /** Statuses in which the owner may still change or decide on a post. */
-const OPEN: Array<(typeof contentItems.status.enumValues)[number]> = ["needs_approval", "rejected", "failed"];
+const OPEN: Array<(typeof contentItems.status.enumValues)[number]> = ["needs_approval", "rejected", "failed", "approved"];
 
 /**
  * Mark a post for rewriting with the owner's instruction. Returns what to pass
@@ -472,25 +488,50 @@ export async function saveItem(
   db: Db,
   tenantId: string,
   itemId: string,
-  input: { copy: string; assetId: string | null; decision: "save" | "approve" | "reject" },
-): Promise<{ ok: true } | { ok: false; error: ItemError }> {
+  input: {
+    copy: string;
+    assetId: string | null;
+    decision: "save" | "approve" | "reject";
+    /** HH:MM, brand-local, on the post's suggested date. Used when the channel is connected. */
+    publishTime?: string;
+  },
+): Promise<{ ok: true; scheduled: boolean } | { ok: false; error: ItemError }> {
   const copy = input.copy.replace(/\r\n/g, "\n").trim().slice(0, PLAN_LIMITS.caption + 300);
   return withTenant(db, tenantId, async (tx) => {
     const [item] = await tx.select().from(contentItems).where(eq(contentItems.id, itemId));
     if (!item) return { ok: false, error: "not_found" };
     // An approved post can be reopened by rejecting or editing it; one being rewritten cannot be touched.
     if (item.status === "drafting") return { ok: false, error: "busy" };
-    if (!["needs_approval", "rejected", "failed", "approved"].includes(item.status)) {
+    if (!["needs_approval", "rejected", "failed", "approved", "scheduled"].includes(item.status)) {
       return { ok: false, error: "not_editable" };
     }
     if (input.decision !== "reject") {
       if (!copy) return { ok: false, error: "empty" };
       await saveOwnerVersion(tx, tenantId, item, copy, input.assetId);
     }
-    const status =
-      input.decision === "approve" ? "approved" : input.decision === "reject" ? "rejected" : "needs_approval";
-    await tx.update(contentItems).set({ status }).where(eq(contentItems.id, itemId));
-    return { ok: true };
+    if (input.decision !== "approve") {
+      await tx
+        .update(contentItems)
+        .set({ status: input.decision === "reject" ? "rejected" : "needs_approval", scheduledAt: null })
+        .where(eq(contentItems.id, itemId));
+      return { ok: true, scheduled: false };
+    }
+
+    // Approved: scheduled when the channel is connected and the post has what it needs.
+    const connection = await activeConnection(tx, item.brandId, item.channel);
+    const hasPhoto = input.assetId !== null;
+    const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(input.publishTime ?? "") ? input.publishTime! : DEFAULT_PUBLISH_TIME;
+    const brief = item.brief as unknown as PostBrief;
+    if (connection && (item.channel !== "instagram" || hasPhoto)) {
+      const [brand] = await tx.select({ country: brands.country }).from(brands).where(eq(brands.id, item.brandId));
+      await tx
+        .update(contentItems)
+        .set({ status: "scheduled", scheduledAt: localToUtc(brief.date, time, brand.country) })
+        .where(eq(contentItems.id, itemId));
+      return { ok: true, scheduled: true };
+    }
+    await tx.update(contentItems).set({ status: "approved", scheduledAt: null }).where(eq(contentItems.id, itemId));
+    return { ok: true, scheduled: false };
   });
 }
 

@@ -1,11 +1,22 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { rewriteAction, saveDraftAction, type ItemActionResult } from "@/app/brands/[id]/semana/actions";
+import {
+  publishNowAction,
+  rewriteAction,
+  saveDraftAction,
+  type ItemActionResult,
+} from "@/app/brands/[id]/semana/actions";
 import { es } from "@/i18n/es";
 import type { ReviewFlag } from "@/lib/brand-dna/schema";
 
 const t = es.post;
+const p = es.publish;
+
+const TIMES = Array.from({ length: 31 }, (_, index) => {
+  const minutes = 7 * 60 + index * 30; // 07:00 to 22:00
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+});
 
 export interface PostCardProps {
   itemId: string;
@@ -25,6 +36,17 @@ export interface PostCardProps {
     flags: ReviewFlag[];
   } | null;
   images: Array<{ id: string; url: string; alt: string | null }>;
+  publishing: {
+    /** The post's channel is connected for automatic publishing. */
+    connected: boolean;
+    /** When it is scheduled, as the owner reads it. */
+    scheduledLabel: string | null;
+    /** HH:MM to preselect. */
+    time: string;
+    permalink: string | null;
+    /** The last attempt failed with this code. */
+    error: string | null;
+  };
 }
 
 const flagText = (flag: ReviewFlag) => {
@@ -60,14 +82,21 @@ export function PostCard(props: PostCardProps) {
       if (result.ok) after?.();
     });
 
+  const [time, setTime] = useState(props.publishing.time);
   const decide = (decision: "save" | "approve" | "reject") =>
-    run(() => saveDraftAction(itemId, { copy, assetId, decision }));
+    run(() => saveDraftAction(itemId, { copy, assetId, decision, publishTime: time }));
 
   const image = images.find((candidate) => candidate.id === assetId) ?? null;
   const dirty = draft !== null && (copy !== draft.copy || assetId !== draft.assetId);
   const working = status === "drafting";
-  const approved = status === "approved";
+  const scheduled = status === "scheduled";
+  const published = status === "published";
+  const sending = status === "publishing";
+  const approved = status === "approved" || scheduled;
   const rejected = status === "rejected";
+  const { connected } = props.publishing;
+  const needsPhoto = props.channel === "instagram" && assetId === null;
+  const canSchedule = connected && !needsPhoto;
 
   const copyText = async () => {
     try {
@@ -81,14 +110,16 @@ export function PostCard(props: PostCardProps) {
 
   return (
     <article
-      className={`rounded-md border-2 bg-raya p-4 sm:p-5 ${approved ? "border-cancha" : "border-borde"} ${rejected ? "opacity-70" : ""}`}
+      className={`rounded-md border-2 bg-raya p-4 sm:p-5 ${approved || published ? "border-cancha" : "border-borde"} ${rejected ? "opacity-70" : ""}`}
       aria-labelledby={`${id}-title`}
     >
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-sm font-semibold uppercase tracking-wide text-tinta-suave">
           {props.dateLabel} · {t.channels[props.channel] ?? props.channel} · {t.formats[props.format] ?? props.format}
         </p>
-        <p className={`text-sm font-semibold ${approved ? "text-cancha" : rejected ? "text-chapa" : "text-tinta-suave"}`}>
+        <p
+          className={`text-sm font-semibold ${approved || published ? "text-cancha" : rejected ? "text-chapa" : "text-tinta-suave"}`}
+        >
           {t.status[status] ?? status}
         </p>
       </header>
@@ -121,7 +152,7 @@ export function PostCard(props: PostCardProps) {
               rows={9}
               value={copy}
               onChange={(event) => setCopy(event.target.value)}
-              disabled={pending}
+              disabled={pending || published || sending}
             />
             <p className="mt-1 text-xs text-tinta-suave">{t.version(draft.version, draft.mine)}</p>
           </div>
@@ -253,49 +284,113 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
-      {!working && !rewriting && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {draft && !approved && (
-            <button type="button" className="button button-primary" disabled={pending} onClick={() => decide("approve")}>
-              {t.approve}
-            </button>
+      {!working && !rewriting && (published || sending) && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {props.publishing.permalink && (
+            <a
+              href={props.publishing.permalink}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="button button-primary"
+            >
+              {p.view}
+            </a>
           )}
-          {draft && approved && dirty && (
-            <button type="button" className="button button-primary" disabled={pending} onClick={() => decide("approve")}>
-              {t.save}
-            </button>
+          {sending && (
+            <span className="flex items-center gap-2" role="status">
+              <span className="ball ball-bouncing" aria-hidden /> {p.publishing}
+            </span>
           )}
-          {draft && !approved && dirty && (
-            <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("save")}>
-              {t.save}
-            </button>
-          )}
-          {draft && (
-            <button type="button" className="button button-quiet" onClick={copyText}>
-              {copied ? t.copied : t.copyText}
-            </button>
-          )}
-          <button type="button" className="button button-quiet" disabled={pending} onClick={() => setRewriting(true)}>
-            {t.rewrite}
+          <button type="button" className="button button-quiet" onClick={copyText}>
+            {copied ? t.copied : t.copyText}
           </button>
-          {(approved || rejected) ? (
-            approved ? (
+        </div>
+      )}
+
+      {!working && !rewriting && !published && !sending && (
+        <>
+          {scheduled && props.publishing.scheduledLabel && (
+            <p className="mt-4 font-semibold text-cancha">{p.scheduled(props.publishing.scheduledLabel)}</p>
+          )}
+          {status === "approved" && !canSchedule && (
+            <p className="mt-4 text-sm text-tinta-suave">{connected && needsPhoto ? p.needsPhoto : p.manual}</p>
+          )}
+          {status === "approved" && props.publishing.error && (
+            <p className="mt-2 text-sm font-medium text-chapa" role="alert">
+              {p.errors[props.publishing.error] ?? p.errors.default}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {draft && canSchedule && (!approved || dirty || status === "approved") && (
+              <label className="flex items-center gap-2 text-sm">
+                {p.at}
+                <select className="field w-auto py-2" value={time} onChange={(event) => setTime(event.target.value)}>
+                  {TIMES.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {draft && (!approved || (status === "approved" && canSchedule)) && (
+              <button type="button" className="button button-primary" disabled={pending} onClick={() => decide("approve")}>
+                {t.approve}
+              </button>
+            )}
+            {draft && approved && dirty && (
+              <button type="button" className="button button-primary" disabled={pending} onClick={() => decide("approve")}>
+                {t.save}
+              </button>
+            )}
+            {scheduled && !dirty && (
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={pending}
+                onClick={() => run(async () => ((await publishNowAction(itemId)).ok ? { ok: true } : { ok: false, error: "not_editable" }))}
+              >
+                {p.now}
+              </button>
+            )}
+            {draft && !approved && dirty && (
+              <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("save")}>
+                {t.save}
+              </button>
+            )}
+            {draft && (
+              <button type="button" className="button button-quiet" onClick={copyText}>
+                {copied ? t.copied : t.copyText}
+              </button>
+            )}
+            {!scheduled && (
+              <button type="button" className="button button-quiet" disabled={pending} onClick={() => setRewriting(true)}>
+                {t.rewrite}
+              </button>
+            )}
+            {scheduled ? (
+              <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("save")}>
+                {p.unschedule}
+              </button>
+            ) : approved || rejected ? (
+              approved ? (
+                <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("reject")}>
+                  {t.reject}
+                </button>
+              ) : (
+                draft && (
+                  <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("save")}>
+                    {t.reopen}
+                  </button>
+                )
+              )
+            ) : (
               <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("reject")}>
                 {t.reject}
               </button>
-            ) : (
-              draft && (
-                <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("save")}>
-                  {t.reopen}
-                </button>
-              )
-            )
-          ) : (
-            <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("reject")}>
-              {t.reject}
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       {error && (

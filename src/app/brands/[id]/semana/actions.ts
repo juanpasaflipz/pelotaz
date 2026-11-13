@@ -1,12 +1,14 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { systemDb } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import {
   contentLimitsFromEnv,
   requestPlan,
+  publishNow,
   requestRewrite,
   saveItem,
   type ItemError,
@@ -16,6 +18,8 @@ import { isUuid } from "@/lib/ids";
 import { ProfileValidationError } from "@/lib/brand-dna/service";
 import { decideProposal, proposeFromEdits } from "@/lib/learning/service";
 import { getLlm } from "@/lib/llm/ai-sdk";
+import { isPublishingConfigured, publishDeps } from "@/lib/publishing/runtime";
+import { chooseFacebookPage, disconnectMeta, publishDue } from "@/lib/publishing/service";
 
 async function requireSession() {
   const session = await getSession();
@@ -42,7 +46,7 @@ export type ItemActionResult = { ok: true } | { ok: false; error: ItemError | "i
 
 export async function saveDraftAction(
   itemId: string,
-  input: { copy: string; assetId: string | null; decision: "save" | "approve" | "reject" },
+  input: { copy: string; assetId: string | null; decision: "save" | "approve" | "reject"; publishTime?: string },
 ): Promise<ItemActionResult> {
   const session = await requireSession();
   if (!isUuid(itemId) || (input.assetId !== null && !isUuid(input.assetId))) {
@@ -52,9 +56,12 @@ export async function saveDraftAction(
     return { ok: false, error: "invalid" };
   }
   try {
-    const result = await saveItem(systemDb(), session.tenantId, itemId, input);
+    const result = await saveItem(systemDb(), session.tenantId, itemId, {
+      ...input,
+      publishTime: typeof input.publishTime === "string" ? input.publishTime : undefined,
+    });
     refresh();
-    return result;
+    return result.ok ? { ok: true } : result;
   } catch {
     // An asset id that is not this brand's photo.
     return { ok: false, error: "invalid" };
@@ -120,4 +127,35 @@ export async function decideProposalAction(
     if (error instanceof ProfileValidationError) return { ok: false, error: "profile" };
     throw error;
   }
+}
+
+export async function publishNowAction(itemId: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  if (!isUuid(itemId) || !isPublishingConfigured()) return { ok: false };
+  const moved = await publishNow(systemDb(), session.tenantId, itemId);
+  if (moved) {
+    after(async () => {
+      await publishDue(publishDeps()).catch((error) =>
+        console.error("publish now failed", { itemId, error: error instanceof Error ? error.message : error }),
+      );
+    });
+  }
+  refresh();
+  return { ok: moved };
+}
+
+export async function chooseMetaPageAction(brandId: string, connectionId: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  if (!isUuid(brandId) || !isUuid(connectionId)) return { ok: false };
+  const ok = await chooseFacebookPage(systemDb(), session.tenantId, brandId, connectionId);
+  refresh();
+  return { ok };
+}
+
+export async function disconnectMetaAction(brandId: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  if (!isUuid(brandId)) return { ok: false };
+  await disconnectMeta(systemDb(), session.tenantId, brandId);
+  refresh();
+  return { ok: true };
 }

@@ -223,6 +223,10 @@ export const connections = pgTable(
       .references(() => brands.id, { onDelete: "cascade" }),
     channel: text("channel").notNull(),
     externalAccountId: text("external_account_id").notNull(),
+    /** Page name or @username, for showing which account is connected. */
+    displayName: text("display_name"),
+    /** For an Instagram account, the Facebook Page it is published through. */
+    parentAccountId: text("parent_account_id"),
     /** Ciphertext only. The key lives outside the database. */
     encryptedTokens: text("encrypted_tokens").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
@@ -273,6 +277,8 @@ export const contentStatus = pgEnum("content_status", [
   "needs_approval",
   "approved",
   "scheduled",
+  /** Being sent to the channel right now. */
+  "publishing",
   "published",
   "failed",
   "rejected",

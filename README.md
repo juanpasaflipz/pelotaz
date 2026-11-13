@@ -14,7 +14,8 @@ This repository covers **phase 1** (the multi-tenant foundation, site crawling, 
 6. **Plan de la semana**: the model proposes 3 to 7 posts for the coming week (day, channel, pillar, featured offer) from the profile, then writes each one in the brand's voice and picks a photo from the brand's own site.
 7. Every post is checked like the profile: prices in code against the site and the profile, banned words in code, and a second model pass for claims the profile does not support. The owner's own edits get the code checks too.
 8. The owner edits, approves, rejects or asks for a rewrite ("más corto, sin emojis"). Approved posts are copied out by hand for now; nothing is published automatically.
-9. **Aprende de tus cambios**: Pelotaz compares the drafts with the owner's edits and proposes profile changes: facts they corrected (a price, a recipe, the rating) and style they changed the same way in two or more posts. The owner ticks which to apply; applied changes become a new profile version marked "ajustada con tus comentarios". The model can only propose from a fixed set of operations, which code applies, so it cannot rewrite anything it does not show.
+9. **Publicación automática**: with the brand's Facebook Page and Instagram account connected, approving a post schedules it for its day at the time the owner picks (12:30 by default). A scheduler publishes due posts. Failures go back to the owner as "approved" with the reason; a post interrupted mid-send is never re-sent automatically.
+10. **Aprende de tus cambios**: Pelotaz compares the drafts with the owner's edits and proposes profile changes: facts they corrected (a price, a recipe, the rating) and style they changed the same way in two or more posts. The owner ticks which to apply; applied changes become a new profile version marked "ajustada con tus comentarios". The model can only propose from a fixed set of operations, which code applies, so it cannot rewrite anything it does not show.
 
 ## Setup
 
@@ -74,13 +75,15 @@ src/
     content/         weekly plan, post drafts, checks, approval
     learning/        profile changes proposed from the owner's edits
     calendar/        holidays and commercial dates per country, for the planner
+    meta/            Graph API client, token encryption, signed OAuth state
+    publishing/      connections, scheduling, the publisher
     llm/             one small interface; AI SDK adapter behind it
     onboarding/      trigger: in-process locally, n8n in production
     auth/            Neon Auth client, access rules, and the session seam
     limits.ts        per-tenant ceilings on brands and onboarding runs
   app/               pages, server actions, two route handlers
   i18n/es.ts         every string the product shows
-drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review)
+drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review, 0004 publishing)
 test/                suites plus an invented restaurant site as a fixture
 ```
 
@@ -127,6 +130,17 @@ The crawled text is passed to the model as fenced, untrusted data with an instru
 
 `LLM_MODEL` is `"<provider>:<model>"` with `anthropic` and `openai` wired in. Set `LLM_MODEL_CRITIC` in the same format to run the audit pass on a smaller, cheaper model; left unset, `LLM_MODEL` does both. Token usage for each call is stored on the profile version it produced (`brand_dna.llm_usage`), which is the raw data for unit cost.
 
+## Publishing to Instagram and Facebook
+
+Off until these are set: `META_APP_ID`, `META_APP_SECRET`, `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`), and `APP_URL` (on Vercel the production address is used when it is unset). Optional: `META_LOGIN_CONFIG_ID` for Facebook Login for Business.
+
+1. **Meta app.** In developers.facebook.com create an app of type *Business*, add *Facebook Login for Business* and *Instagram* (API with Facebook Login). Valid OAuth redirect URI: `https://www.pelotaz.com/api/connect/meta/callback`.
+2. **Permissions.** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `business_management`, `instagram_basic`, `instagram_content_publish`. While the app is in development mode they work for people with a role on the app; customers need *Advanced access*, which needs Meta's App Review and Business Verification.
+3. **Accounts.** The Instagram account must be a professional (business or creator) account linked to the Facebook Page.
+4. **Scheduler.** Call `POST /api/cron/publish` every 5 to 15 minutes with the header `Authorization: Bearer <INTERNAL_API_SECRET>`. An n8n *Schedule Trigger* plus *HTTP Request* node does it. (Vercel Cron on the Hobby plan only runs daily, which is too coarse.)
+
+How it works: tokens are the Page access tokens obtained from a long-lived user token, stored AES-256-GCM encrypted. Instagram takes only JPEGs at a public URL, so `/api/media/<asset id>` fetches the photo from the brand's site through the guarded fetcher and converts it (feed: cropped into 4:5 to 1.91:1; story: fitted onto a 9:16 canvas). That route is public by necessity and serves only photos already public on the brand's own site. Facebook stories are not published through the API, so the planner gives Facebook only feed posts.
+
 ## Production trigger with n8n
 
 Locally, onboarding runs inside the Next.js process after the response is sent. In production set `N8N_ONBOARD_WEBHOOK_URL`, and the app posts `{ tenantId, brandId, force }` there instead, with the header `x-pelotaz-secret`. The n8n workflow is three nodes:
@@ -139,7 +153,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 
 ## What is tested
 
-`npm test` runs 212 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
+`npm test` runs 226 tests. They use the real migrations on a real Postgres engine, the real fetcher against a local HTTP server, and the AI SDK's own mock model for the adapter.
 
 - **Tenant isolation**: reads, updates, deletes and inserts across tenants; the tenant role with no tenant set; the role being dropped when the transaction ends.
 - **Access and limits**: workspace creation (once, even with simultaneous first visits), the allowlist, unconfirmed addresses, brand and daily-run ceilings under concurrency.
@@ -147,6 +161,7 @@ The endpoint is safe to call twice: the first call claims the brand, a second ge
 - **URL guard and fetcher**: 28 unsafe URL forms, redirects into private space, a hostname that resolves inward at connect time, size cap, content type, charset.
 - **Crawler**: page priority, `robots.txt`, sitemaps, failures, palette, fonts, logo, social links.
 - **Brand DNA**: the full onboarding run, invented prices being flagged, critic failure, model failure, thin sites, concurrent triggers, retries, edits and versions.
+- **Publishing**: token encryption and tamper detection, signed OAuth state, the Instagram container flow, story parameters, expired tokens, time zones (with daylight saving), single and multiple Pages, scheduling rules, two schedulers racing (one publish), failures back to the owner, posts stuck mid-send never re-sent, disconnecting.
 - **Calendar**: Easter and nth-weekday rules, each market's own dates, paydays, year boundaries, only calendar dates reaching a plan.
 - **Learning from edits**: proposals limited to changes that apply, stale or duplicate changes skipped, applied versions marked as feedback, no model call when there is nothing new, tenant isolation.
 - **Weekly plan and approval**: invented offers dropped, one post per slot, invented prices and banned words flagged, a failed draft not sinking the plan, double triggers, re-planning never discarding approved posts, owner edits as checked versions, rewrites, photos from another brand refused, tenant isolation.
@@ -163,6 +178,6 @@ The suite also passes against Postgres 16 with a non-superuser owner role.
 - **The weekly plan has been run with test models only.** Run `npm run try -- <site> --week` with a real key before relying on it.
 - **Photos are picked by description and file name** when the week is planned, each at most once. The model does not see them; the owner can swap the photo on each post.
 - **Calendar coverage.** Plans may mention only dates from `src/lib/calendar/calendar.ts`: national holidays, main commercial dates and, in Mexico, the quincena paydays, for each market. Dates that change every year (El Buen Fin, the Super Bowl) are entered by hand per year with their source; Liga MX and other sports are not in yet.
-- **Publishing**: approved posts are copied out by hand. Meta (Instagram, Facebook) publishing needs app review.
+- **Publishing has not run against Meta.** It is built and tested against a fake Graph API; it needs a Meta app, and customers other than you need Meta's App Review. Instagram stories via the API are less documented than feed posts; check the first one.
 - **Later phases**: channel adapters, metrics, suggestions, generated images, video, billing, WhatsApp, local payments.
 - **English UI.** Strings are externalised in `src/i18n/es.ts`; only Spanish exists.

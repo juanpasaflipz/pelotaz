@@ -128,7 +128,9 @@ export function normalizePlan(
   const seen = new Set<string>();
   const usedImages = new Set<number>();
   const posts: PlannedPost[] = [];
-  for (const post of plan.posts) {
+  for (const planned of plan.posts) {
+    // Facebook stories cannot be published for a Page through the API; plan them as posts.
+    const post = planned.channel === "facebook" ? { ...planned, format: "post" as const } : planned;
     const slot = `${post.day}:${post.channel}:${post.format}`;
     if (seen.has(slot)) continue;
     const topic = clamp(post.topic, PLAN_LIMITS.shortText);

@@ -6,6 +6,12 @@ export interface FetchedResource {
   body: string;
 }
 
+export interface FetchedImage {
+  url: string;
+  contentType: string;
+  bytes: Buffer;
+}
+
 export type ResourceKind = "html" | "text" | "css" | "xml";
 
 /**

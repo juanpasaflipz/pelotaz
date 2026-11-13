@@ -60,7 +60,7 @@ Plan between ${PLAN_LIMITS.minPosts} and ${PLAN_LIMITS.maxPosts} posts. Choose f
 - "promotion" posts only for promotions listed in the profile. If there are none, do not use that pillar.
 - When a post features a product, set "offerName" to that offer's exact name from the profile.
 - Spread posts across the week. At most one post per day per channel and format.
-- Channels are instagram and facebook. Formats are "post" (feed photo) and "story". Each post uses one photo from the business's own website, so plan ideas a real photo of the food, place or product can carry.
+- Channels are instagram and facebook. Formats are "post" (feed photo) and "story"; stories only on instagram. Instagram posts need a photo. Each post uses one photo from the business's own website, so plan ideas a real photo of the food, place or product can carry.
 - Pick each post's photo by its description and file name. Use a photo at most once in the week. Use null when none fits; a wrong photo is worse than none.
 - Use the calendar when a date fits this business and its customers: set "occasion" to the date's exact name. Skip dates that do not fit; most weeks need one or none. Post before or on the date, not after it. Dates next week are listed so you can announce them late this week.
 - Write each "angle" in your own words. The profile's example sentences show the voice; they are not slogans to repeat.

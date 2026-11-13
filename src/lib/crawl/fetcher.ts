@@ -1,12 +1,13 @@
 import type { LookupFunction } from "node:net";
 import { Agent, fetch } from "undici";
-import type { FetchedResource, PageFetcher, ResourceKind } from "./types";
+import type { FetchedImage, FetchedResource, PageFetcher, ResourceKind } from "./types";
 import { guardedLookup, parsePublicUrl, UnsafeUrlError } from "./url-guard";
 
 export const CRAWLER_USER_AGENT =
   "PelotazBot/0.1 (+https://pelotaz.com/bot; brand onboarding crawler)";
 
 const MAX_REDIRECTS = 5;
+const MAX_IMAGE_BYTES = 15_000_000;
 const TIMEOUT_MS = 10_000;
 const MAX_BYTES: Record<ResourceKind, number> = {
   html: 2_000_000,
@@ -59,7 +60,9 @@ export interface GuardedFetcherOptions {
  * hop goes through the same URL checks as the first request, and bodies are
  * read with a byte cap so a hostile server cannot exhaust memory.
  */
-export function createGuardedFetcher(options: GuardedFetcherOptions = {}): PageFetcher {
+export function createGuardedFetcher(
+  options: GuardedFetcherOptions = {},
+): PageFetcher & { fetchImage(url: string): Promise<FetchedImage> } {
   const overrides = options.testOverrides;
   const dispatcher = new Agent({
     connect: { lookup: overrides?.lookup ?? (guardedLookup as LookupFunction) },
@@ -70,64 +73,73 @@ export function createGuardedFetcher(options: GuardedFetcherOptions = {}): PageF
   const checkUrl = (raw: string): URL =>
     parsePublicUrl(raw, { allowAnyPort: overrides?.allowAnyPort === true });
 
+  /** Follow redirects by hand, checking every hop; returns the final response. */
+  async function request(rawUrl: string, accept: string) {
+    let url = checkUrl(rawUrl);
+    const signal = AbortSignal.timeout(TIMEOUT_MS * 2);
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      let response;
+      try {
+        response = await fetch(url, {
+          dispatcher,
+          redirect: "manual",
+          signal,
+          headers: { "user-agent": CRAWLER_USER_AGENT, accept, "accept-language": "es,en;q=0.8" },
+        });
+      } catch (error) {
+        throw toFetchError(error);
+      }
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        await response.body?.cancel();
+        if (!location) throw new FetchRejectedError("bad_redirect", "missing Location");
+        try {
+          url = checkUrl(new URL(location, url).toString());
+        } catch (error) {
+          if (error instanceof UnsafeUrlError) throw error;
+          throw new FetchRejectedError("bad_redirect", location);
+        }
+        continue;
+      }
+      return { url, response };
+    }
+    throw new FetchRejectedError("too_many_redirects");
+  }
+
   return {
     async fetch(rawUrl: string, kind: ResourceKind): Promise<FetchedResource> {
-      let url = checkUrl(rawUrl);
-      const signal = AbortSignal.timeout(TIMEOUT_MS * 2);
-
-      for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-        let response;
-        try {
-          response = await fetch(url, {
-            dispatcher,
-            redirect: "manual",
-            signal,
-            headers: {
-              "user-agent": CRAWLER_USER_AGENT,
-              accept: ACCEPT[kind],
-              "accept-language": "es,en;q=0.8",
-            },
-          });
-        } catch (error) {
-          throw toFetchError(error);
-        }
-
-        if (response.status >= 300 && response.status < 400) {
-          const location = response.headers.get("location");
-          await response.body?.cancel();
-          if (!location) throw new FetchRejectedError("bad_redirect", "missing Location");
-          try {
-            url = checkUrl(new URL(location, url).toString());
-          } catch (error) {
-            if (error instanceof UnsafeUrlError) throw error;
-            throw new FetchRejectedError("bad_redirect", location);
-          }
-          continue;
-        }
-
-        const contentType = response.headers.get("content-type") ?? "";
-        if (response.ok && !CONTENT_TYPE_OK[kind].test(contentType)) {
-          await response.body?.cancel();
-          throw new FetchRejectedError("wrong_content_type", contentType || "(none)");
-        }
-
-        const body = response.ok
-          ? await readCapped(response.body, MAX_BYTES[kind], charsetOf(contentType))
-          : "";
-        if (!response.ok) await response.body?.cancel();
-        return { url: url.toString(), status: response.status, contentType, body };
+      const { url, response } = await request(rawUrl, ACCEPT[kind]);
+      const contentType = response.headers.get("content-type") ?? "";
+      if (response.ok && !CONTENT_TYPE_OK[kind].test(contentType)) {
+        await response.body?.cancel();
+        throw new FetchRejectedError("wrong_content_type", contentType || "(none)");
       }
-      throw new FetchRejectedError("too_many_redirects");
+      const body = response.ok ? decode(await readBytes(response.body, MAX_BYTES[kind]), charsetOf(contentType)) : "";
+      if (!response.ok) await response.body?.cancel();
+      return { url: url.toString(), status: response.status, contentType, body };
+    },
+
+    async fetchImage(rawUrl: string): Promise<FetchedImage> {
+      const { url, response } = await request(rawUrl, "image/avif,image/webp,image/jpeg,image/png,image/*;q=0.8");
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw new FetchRejectedError("network", `status ${response.status}`);
+      }
+      if (!/^image\/(jpeg|png|webp|avif|gif)/i.test(contentType)) {
+        await response.body?.cancel();
+        throw new FetchRejectedError("wrong_content_type", contentType || "(none)");
+      }
+      return { url: url.toString(), contentType, bytes: await readBytes(response.body, MAX_IMAGE_BYTES) };
     },
   };
 }
 
-async function readCapped(
+async function readBytes(
   body: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(): Promise<void> } } | null,
   maxBytes: number,
-  charset: string,
-): Promise<string> {
-  if (!body) return "";
+): Promise<Buffer> {
+  if (!body) return Buffer.alloc(0);
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -146,7 +158,7 @@ async function readCapped(
     if (error instanceof FetchRejectedError) throw error;
     throw toFetchError(error);
   }
-  return decode(Buffer.concat(chunks), charset);
+  return Buffer.concat(chunks);
 }
 
 function charsetOf(contentType: string): string {

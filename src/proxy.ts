@@ -14,8 +14,9 @@ export default function proxy(request: NextRequest) {
   if (!isNeonAuthConfigured()) return NextResponse.next();
   guard ??= neonAuth().middleware({
     loginUrl: "/auth/sign-in",
-    // /api/internal is called by n8n and authenticates with its own secret.
-    publicRoutes: ["/auth/sign-in", "/auth/sign-up", "/api/internal"],
+    // /api/internal and /api/cron are called by schedulers with their own secret;
+    // /api/media is fetched by Meta's servers when a post is published.
+    publicRoutes: ["/auth/sign-in", "/auth/sign-up", "/api/internal", "/api/cron", "/api/media"],
   });
   return guard(request);
 }
