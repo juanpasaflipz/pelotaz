@@ -4,17 +4,22 @@ import { isPublishingConfigured, publishDeps } from "@/lib/publishing/runtime";
 
 export const maxDuration = 300;
 
+const matches = (given: string, expected: string | undefined) =>
+  !!expected &&
+  expected.length >= 32 &&
+  given.length === expected.length &&
+  timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+
+/** Vercel Cron sends `Authorization: Bearer $CRON_SECRET`; other schedulers may use the internal secret. */
 function authorized(request: Request): boolean {
-  const expected = process.env.INTERNAL_API_SECRET ?? "";
-  if (expected.length < 32) return false;
   const given =
     request.headers.get("x-pelotaz-secret") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  return given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+  return matches(given, process.env.CRON_SECRET) || matches(given, process.env.INTERNAL_API_SECRET);
 }
 
 /**
- * Publish posts that are due. Call every 5 to 15 minutes from a scheduler
- * (n8n, or any cron) with the internal secret.
+ * Publish posts that are due. Vercel Cron calls it every 10 minutes
+ * (vercel.json); any other scheduler can call it with the internal secret.
  */
 async function handle(request: Request) {
   if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
