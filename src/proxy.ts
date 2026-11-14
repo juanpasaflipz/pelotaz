@@ -20,6 +20,8 @@ export default function proxy(request: NextRequest) {
     publicRoutes: [
       "/auth/sign-in",
       "/auth/sign-up",
+      "/auth/olvide",
+      "/auth/restablecer",
       "/api/internal",
       "/api/cron",
       "/api/media",

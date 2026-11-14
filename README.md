@@ -171,7 +171,7 @@ The suite also passes against Postgres 16 with a non-superuser owner role.
 ## Not done yet
 
 - **Sign-in has not been run against a live Neon Auth project.** The code is typed against the SDK, and with the settings present signed-out and forged requests are redirected to sign-in, but no real account has signed up or signed in yet. Do that once after enabling Auth in the Neon Console.
-- **Password reset and Google sign-in.** Not built. Email and password only.
+- **Google sign-in.** Not built. Email and password, with password reset by emailed code (or link, if the Neon project sends links). Reset has not been run against Neon yet.
 - **Prompt tuning on more than one site.** Onboarding has been run for real on one restaurant site. Other kinds of business will surface other mistakes.
 - **JavaScript-rendered sites.** Pages are fetched as HTML, not rendered in a browser. A site that builds its content client-side yields little text and is reported as such rather than guessed at.
 - **Plan-based limits.** Each tenant has a ceiling on brands and on onboarding runs per day (`MAX_BRANDS_PER_TENANT`, `ONBOARDINGS_PER_DAY`). These are safety limits, not entitlements tied to a paid plan.

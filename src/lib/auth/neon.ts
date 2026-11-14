@@ -29,8 +29,19 @@ interface ProviderResult {
 
 /** Email one-time codes. The server client has these endpoints but leaves them untyped. */
 export interface EmailOtpApi {
-  sendVerificationOtp(args: { email: string; type: "email-verification" }): Promise<ProviderResult>;
+  sendVerificationOtp(args: { email: string; type: "email-verification" | "forget-password" }): Promise<ProviderResult>;
   verifyEmail(args: { email: string; otp: string }): Promise<ProviderResult>;
+  resetPassword(args: { email: string; otp: string; password: string }): Promise<ProviderResult>;
+}
+
+/** Password reset by emailed link, for projects that send links instead of codes. */
+export interface PasswordLinkApi {
+  requestPasswordReset(args: { email: string; redirectTo: string }): Promise<ProviderResult>;
+  resetPassword(args: { newPassword: string; token: string }): Promise<ProviderResult>;
+}
+
+export function passwordLinks(): PasswordLinkApi {
+  return neonAuth() as unknown as PasswordLinkApi;
 }
 
 export function emailOtp(): EmailOtpApi {
