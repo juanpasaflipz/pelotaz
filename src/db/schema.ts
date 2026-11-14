@@ -416,6 +416,16 @@ export const metricsDaily = pgTable(
     /** Spend in the currency's minor unit (centavos for MXN). */
     spendMinor: bigint("spend_minor", { mode: "number" }).notNull().default(0),
     currency: text("currency").notNull().default("MXN"),
+    // Organic results, as lifetime totals on `day` (a daily snapshot).
+    // Null when the channel did not report that number.
+    views: bigint("views", { mode: "number" }),
+    reach: bigint("reach", { mode: "number" }),
+    likes: bigint("likes", { mode: "number" }),
+    comments: bigint("comments", { mode: "number" }),
+    shares: bigint("shares", { mode: "number" }),
+    saves: bigint("saves", { mode: "number" }),
+    interactions: bigint("interactions", { mode: "number" }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }),
   },
   (t) => [
     primaryKey({ columns: [t.publicationId, t.day] }),

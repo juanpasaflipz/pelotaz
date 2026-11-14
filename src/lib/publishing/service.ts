@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
-import { assets, brands, connections, contentItems, drafts, publications } from "@/db/schema";
+import { assets, brands, connections, contentItems, drafts, metricsDaily, publications } from "@/db/schema";
 import { withTenant, type Db, type TenantTx } from "@/db/tenant";
 import { decrypt, encrypt } from "@/lib/meta/secrets";
 import { MetaApiError, type GraphClient, type ManagedPage, type Published } from "@/lib/meta/graph";
@@ -194,6 +194,9 @@ async function releaseStuck(db: Db, now: Date) {
         contentItemId: item.id,
         connectionId: anyConnection.id,
         error: "unknown_state",
+      }).onConflictDoUpdate({
+        target: [publications.contentItemId, publications.connectionId],
+        set: { error: "unknown_state" },
       });
     });
   }
@@ -223,16 +226,17 @@ async function publishOne(deps: PublishDeps, tenantId: string, itemId: string): 
   const finish = async (result: { published?: Published; error?: string }, connectionId: string | null) => {
     await withTenant(db, tenantId, async (tx) => {
       if (connectionId) {
-        await tx.insert(publications).values({
-          tenantId,
-          brandId: item.brandId,
-          contentItemId: item.id,
-          connectionId,
+        // One record per post and account: a retry after a failure updates it.
+        const outcome = {
           externalId: result.published?.id ?? null,
           permalink: result.published?.permalink ?? null,
           publishedAt: result.published ? (deps.now?.() ?? new Date()) : null,
           error: result.error ?? null,
-        });
+        };
+        await tx
+          .insert(publications)
+          .values({ tenantId, brandId: item.brandId, contentItemId: item.id, connectionId, ...outcome })
+          .onConflictDoUpdate({ target: [publications.contentItemId, publications.connectionId], set: outcome });
       }
       await tx
         .update(contentItems)
@@ -307,5 +311,111 @@ export async function latestPublications(db: Db, tenantId: string, itemIds: stri
       .where(inArray(publications.contentItemId, itemIds))
       .orderBy(publications.contentItemId, desc(publications.createdAt));
     return new Map(rows.map((row) => [row.contentItemId, row]));
+  });
+}
+
+export interface ResultsDeps {
+  db: Db;
+  graph: GraphClient;
+  now?: () => Date;
+}
+
+/** Posts are followed for this long after publishing; most results arrive in the first days. */
+const FOLLOW_DAYS = 30;
+
+/**
+ * Fetch today's results for published posts that do not have them yet, and
+ * store them as that day's snapshot. Cross-tenant (a scheduler); each write
+ * goes through the post's tenant.
+ */
+export async function collectResults(deps: ResultsDeps, limit = 40): Promise<{ updated: number; failed: number }> {
+  const now = deps.now?.() ?? new Date();
+  const day = now.toISOString().slice(0, 10);
+  const due = (await deps.db.execute(sql`
+    select p.id, p.tenant_id, p.brand_id, p.external_id, c.channel, c.encrypted_tokens, i.format
+    from publications p
+    join connections c on c.id = p.connection_id
+    join content_items i on i.id = p.content_item_id
+    where p.external_id is not null
+      and p.published_at > ${new Date(now.getTime() - FOLLOW_DAYS * 86_400_000).toISOString()}
+      and p.published_at < ${new Date(now.getTime() - 60 * 60_000).toISOString()}
+      and c.status = 'active' and c.encrypted_tokens <> ''
+      and not exists (select 1 from metrics_daily m where m.publication_id = p.id and m.day = ${day})
+    order by p.published_at desc
+    limit ${limit}
+  `)) as unknown as {
+    rows: Array<{
+      id: string;
+      tenant_id: string;
+      brand_id: string;
+      external_id: string;
+      channel: string;
+      encrypted_tokens: string;
+      format: string;
+    }>;
+  };
+
+  let updated = 0;
+  let failed = 0;
+  for (const row of due.rows) {
+    try {
+      const { token } = JSON.parse(decrypt(row.encrypted_tokens)) as StoredTokens;
+      const results =
+        row.channel === "instagram"
+          ? await deps.graph.instagramResults(row.external_id, token, row.format === "story")
+          : await deps.graph.facebookResults(row.external_id, token);
+      await withTenant(deps.db, row.tenant_id, (tx) =>
+        tx
+          .insert(metricsDaily)
+          .values({ tenantId: row.tenant_id, brandId: row.brand_id, publicationId: row.id, day, ...results, fetchedAt: now })
+          .onConflictDoUpdate({
+            target: [metricsDaily.publicationId, metricsDaily.day],
+            set: { ...results, fetchedAt: now },
+          }),
+      );
+      updated += 1;
+    } catch (error) {
+      failed += 1;
+      console.error("results failed", {
+        publicationId: row.id,
+        error: error instanceof Error ? error.message.slice(0, 200) : "unknown",
+      });
+    }
+  }
+  return { updated, failed };
+}
+
+export interface PostResultsView {
+  views: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  interactions: number | null;
+  day: string;
+}
+
+/** Latest results per content item. */
+export async function latestResults(db: Db, tenantId: string, itemIds: string[]) {
+  if (itemIds.length === 0) return new Map<string, PostResultsView>();
+  return withTenant(db, tenantId, async (tx) => {
+    const rows = await tx
+      .selectDistinctOn([publications.contentItemId], {
+        itemId: publications.contentItemId,
+        day: metricsDaily.day,
+        views: metricsDaily.views,
+        reach: metricsDaily.reach,
+        likes: metricsDaily.likes,
+        comments: metricsDaily.comments,
+        shares: metricsDaily.shares,
+        saves: metricsDaily.saves,
+        interactions: metricsDaily.interactions,
+      })
+      .from(metricsDaily)
+      .innerJoin(publications, eq(publications.id, metricsDaily.publicationId))
+      .where(inArray(publications.contentItemId, itemIds))
+      .orderBy(publications.contentItemId, desc(metricsDaily.day));
+    return new Map(rows.map(({ itemId, ...rest }) => [itemId, rest]));
   });
 }

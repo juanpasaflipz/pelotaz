@@ -11,7 +11,7 @@ import { ChannelsPanel } from "@/components/week/channels-panel";
 import { DECIDED, DEFAULT_PUBLISH_TIME } from "@/lib/content/service";
 import { timeZoneOf, utcToLocalTime } from "@/lib/markets";
 import { isPublishingConfigured } from "@/lib/publishing/runtime";
-import { latestPublications, listConnections } from "@/lib/publishing/service";
+import { latestPublications, latestResults, listConnections } from "@/lib/publishing/service";
 import { currentValue } from "@/lib/learning/changes";
 import { hasNewEdits, pendingProposal } from "@/lib/learning/service";
 import { systemDb } from "@/db/client";
@@ -62,11 +62,11 @@ async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/s
     pendingProposal(systemDb(), access.tenantId, brand.id),
     publishing ? listConnections(systemDb(), access.tenantId, brand.id) : Promise.resolve([]),
   ]);
-  const published = await latestPublications(
-    systemDb(),
-    access.tenantId,
-    week?.items.map(({ item }) => item.id) ?? [],
-  );
+  const itemIds = week?.items.map(({ item }) => item.id) ?? [];
+  const [published, results] = await Promise.all([
+    latestPublications(systemDb(), access.tenantId, itemIds),
+    latestResults(systemDb(), access.tenantId, itemIds),
+  ]);
   const connectedChannels = new Set(connections.filter((c) => c.status === "active").map((c) => c.channel as string));
   const whenLabel = (instant: Date) =>
     new Intl.DateTimeFormat("es-MX", {
@@ -198,6 +198,7 @@ async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/s
                   time: item.scheduledAt ? utcToLocalTime(item.scheduledAt, brand.country) : DEFAULT_PUBLISH_TIME,
                   permalink: published.get(item.id)?.permalink ?? null,
                   error: published.get(item.id)?.error ?? null,
+                  results: results.get(item.id) ?? null,
                 }}
               />
             ))}

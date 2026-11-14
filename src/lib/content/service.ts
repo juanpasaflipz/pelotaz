@@ -5,7 +5,7 @@ import type { BrandDnaProfile, ReviewFlag } from "@/lib/brand-dna/schema";
 import type { Llm } from "@/lib/llm/types";
 import { localDate, localToUtc } from "@/lib/markets";
 import { activeConnection } from "@/lib/publishing/service";
-import { checkCopy, planWeek, writeDraft } from "./build";
+import { checkCopy, planWeek, writeDraft, type PastPost } from "./build";
 import { nextWeekStart, PLAN_LIMITS, type CandidateImage, type PostBrief } from "./schema";
 
 export interface ContentDeps {
@@ -194,6 +194,44 @@ async function loadBrandContext(tx: TenantTx, tenantId: string, brandId: string)
   };
 }
 
+/** The brand's last published posts with their latest results, for the planner. */
+async function recentResults(tx: TenantTx, brandId: string, limit = 20): Promise<PastPost[]> {
+  const rows = (await tx.execute(sql`
+    select distinct on (p.id)
+      i.brief, i.channel, i.format, m.reach, m.views, m.interactions, p.published_at
+    from publications p
+    join content_items i on i.id = p.content_item_id
+    left join metrics_daily m on m.publication_id = p.id
+    where p.brand_id = ${brandId} and p.external_id is not null
+    order by p.id, m.day desc nulls last
+  `)) as unknown as {
+    rows: Array<{
+      brief: PostBrief;
+      channel: string;
+      format: string;
+      reach: string | number | null;
+      views: string | number | null;
+      interactions: string | number | null;
+      published_at: string | Date;
+    }>;
+  };
+  const num = (value: string | number | null) => (value === null ? null : Number(value));
+  return rows.rows
+    .sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
+    .slice(0, limit)
+    .map((row) => ({
+      date: row.brief.date,
+      channel: row.channel,
+      format: row.format,
+      pillar: row.brief.pillar,
+      topic: row.brief.topic,
+      offerName: row.brief.offerName,
+      reach: num(row.reach),
+      views: num(row.views),
+      interactions: num(row.interactions),
+    }));
+}
+
 async function nextDraftVersion(tx: TenantTx, itemId: string): Promise<number> {
   const [row] = await tx
     .select({ latest: sql<number | null>`max(${drafts.version})` })
@@ -307,7 +345,8 @@ export async function runPlan(deps: ContentDeps, tenantId: string, planId: strin
 
   let built;
   try {
-    built = await planWeek(llm, { profile: context.profile, weekStart: plan.weekStart, images: context.images });
+    const past = await withTenant(db, tenantId, (tx) => recentResults(tx, plan.brandId));
+    built = await planWeek(llm, { profile: context.profile, weekStart: plan.weekStart, images: context.images, past });
   } catch (error) {
     console.error("plan failed", { planId, error: error instanceof Error ? error.message : error });
     return fail("llm_error");

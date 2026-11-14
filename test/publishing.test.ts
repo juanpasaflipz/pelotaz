@@ -3,12 +3,15 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { brands, connections, contentItems, publications } from "@/db/schema";
 import { withTenant, type Db } from "@/db/tenant";
-import { onboardBrand } from "@/lib/brand-dna/service";
+import { latestBrandDna, onboardBrand } from "@/lib/brand-dna/service";
+import { planWeek } from "@/lib/content/build";
 import { latestWeek, publishNow, requestPlan, runPlan, saveItem, type ContentLimits } from "@/lib/content/service";
 import { localToUtc } from "@/lib/markets";
 import { createGraphClient, loginUrl, MetaApiError, type FetchLike, type GraphClient, type ManagedPage } from "@/lib/meta/graph";
 import { decrypt, encrypt, sign, verify } from "@/lib/meta/secrets";
 import {
+  collectResults,
+  latestResults,
   chooseFacebookPage,
   disconnectMeta,
   listConnections,
@@ -52,6 +55,14 @@ function fakeGraph(fail?: () => Error) {
       calls.push({ kind: "facebook", account, token, input });
       if (fail) throw fail();
       return { id: `fb-${calls.length}`, permalink: `https://facebook.com/fb-${calls.length}` };
+    },
+    async instagramResults(mediaId: string, token: string, story: boolean) {
+      calls.push({ kind: "ig-results", account: mediaId, token, input: { story } });
+      return { views: 900, reach: 640, likes: 51, comments: 4, shares: 3, saves: 7, interactions: 65 };
+    },
+    async facebookResults(postId: string, token: string) {
+      calls.push({ kind: "fb-results", account: postId, token, input: null });
+      return { views: null, reach: null, likes: 12, comments: 1, shares: 0, saves: null, interactions: 13 };
     },
   } as unknown as GraphClient;
   return { graph, calls };
@@ -363,5 +374,100 @@ describe("scheduling and publishing", () => {
     const [row] = await db.select().from(contentItems).where(eq(contentItems.id, igPost.item.id));
     expect([row.status, row.scheduledAt]).toEqual(["approved", null]);
     expect(await listConnections(db, tenantId, brandId)).toEqual([]);
+  });
+});
+
+describe("results", () => {
+  it("reads Instagram metrics one at a time and skips ones Meta no longer reports", async () => {
+    const asked: string[] = [];
+    const fetchImpl: FetchLike = async (url) => {
+      const metric = new URL(url).searchParams.get("metric")!;
+      asked.push(metric);
+      if (metric === "saved") return { ok: false, status: 400, json: async () => ({ error: { message: "bad metric", code: 100 } }) };
+      return { ok: true, status: 200, json: async () => ({ data: [{ values: [{ value: metric.length }] }] }) };
+    };
+    const graph = createGraphClient({ appId: "a", appSecret: "s" }, fetchImpl);
+    const results = await graph.instagramResults("m1", "t", false);
+    expect(asked).toEqual(["views", "reach", "likes", "comments", "shares", "saved", "total_interactions"]);
+    expect(results).toMatchObject({ views: 5, reach: 5, likes: 5, saves: null, interactions: 18 });
+
+    const expired: FetchLike = async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Session expired", code: 190 } }),
+    });
+    await expect(createGraphClient({ appId: "a", appSecret: "s" }, expired).instagramResults("m1", "t", true)).rejects.toThrow(
+      MetaApiError,
+    );
+  });
+
+  it("collects each published post once a day and shows the latest", async () => {
+    const { brandId, week } = await plannedBrand();
+    await saveConnections(db, tenantId, brandId, [PAGE]);
+    const [igPost, , fbPost] = week.items;
+    await approve(igPost.item.id, igPost.draft!);
+    await approve(fbPost.item.id, fbPost.draft!);
+    await publishNow(db, tenantId, igPost.item.id);
+    await publishNow(db, tenantId, fbPost.item.id);
+    const { graph, calls } = fakeGraph();
+    await publishDue(deps(graph));
+
+    // Too soon after publishing: nothing to read yet.
+    expect(await collectResults({ db, graph })).toEqual({ updated: 0, failed: 0 });
+
+    const later = new Date(Date.now() + 2 * 60 * 60_000);
+    // The scheduler covers every tenant; other tests' posts are in this database too.
+    const first = await collectResults({ db, graph, now: () => later });
+    expect(first.updated).toBeGreaterThanOrEqual(2);
+    expect(await collectResults({ db, graph, now: () => later })).toEqual({ updated: 0, failed: 0 });
+    expect(new Set(calls.filter((c) => c.kind.endsWith("-results")).map((c) => c.kind))).toEqual(
+      new Set(["fb-results", "ig-results"]),
+    );
+
+    const shown = await latestResults(db, tenantId, [igPost.item.id, fbPost.item.id]);
+    expect(shown.get(igPost.item.id)).toMatchObject({ reach: 640, likes: 51, saves: 7 });
+    expect(shown.get(fbPost.item.id)).toMatchObject({ reach: null, likes: 12 });
+    expect(await latestResults(db, otherTenantId, [igPost.item.id])).toEqual(new Map());
+  });
+
+  it("retries a failed post without tripping over its earlier record", async () => {
+    const { brandId, week } = await plannedBrand();
+    await saveConnections(db, tenantId, brandId, [PAGE]);
+    const [igPost] = week.items;
+    await approve(igPost.item.id, igPost.draft!);
+    await publishNow(db, tenantId, igPost.item.id);
+    await publishDue(deps(fakeGraph(() => new Error("temporary")).graph));
+
+    await approve(igPost.item.id, igPost.draft!);
+    await publishNow(db, tenantId, igPost.item.id);
+    const [result] = await publishDue(deps(fakeGraph().graph));
+    expect(result.ok).toBe(true);
+    const records = await db.select().from(publications).where(eq(publications.contentItemId, igPost.item.id));
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({ error: null });
+    expect(records[0].externalId).not.toBeNull();
+  });
+
+  it("gives the planner recent results", async () => {
+    const { brandId } = await plannedBrand();
+    const profile = (await latestBrandDna(db, tenantId, brandId))!.profile;
+    const prompts: string[] = [];
+    const llm = createFakeLlm({
+      "content.plan": (request) => {
+        prompts.push(request.prompt);
+        throw new Error("stop");
+      },
+    });
+    await planWeek(llm, {
+      profile,
+      weekStart: "2026-11-23",
+      images: [],
+      past: [
+        { date: "2026-11-16", channel: "instagram", format: "post", pillar: "product", topic: "Pastor", offerName: null, reach: 640, views: 900, interactions: 65 },
+        { date: "2026-11-17", channel: "facebook", format: "post", pillar: "community", topic: "Barrio", offerName: null, reach: null, views: null, interactions: null },
+      ],
+    }).catch(() => {});
+    expect(prompts[0]).toContain('instagram post, product: "Pastor": reach 640, views 900, interactions 65');
+    expect(prompts[0]).toContain('"Barrio": no results yet');
   });
 });

@@ -46,6 +46,15 @@ export interface PostCardProps {
     permalink: string | null;
     /** The last attempt failed with this code. */
     error: string | null;
+    results: {
+      day: string;
+      views: number | null;
+      reach: number | null;
+      likes: number | null;
+      comments: number | null;
+      shares: number | null;
+      saves: number | null;
+    } | null;
   };
 }
 
@@ -284,6 +293,8 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
+      {published && <Results results={props.publishing.results} />}
+
       {!working && !rewriting && (published || sending) && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           {props.publishing.permalink && (
@@ -399,5 +410,37 @@ export function PostCard(props: PostCardProps) {
         </p>
       )}
     </article>
+  );
+}
+
+const number = new Intl.NumberFormat("es-MX");
+
+function Results({ results }: { results: PostCardProps["publishing"]["results"] }) {
+  const r = p.results;
+  if (!results) return <p className="mt-4 text-sm text-tinta-suave">{r.pending}</p>;
+  const cells = (
+    [
+      ["views", r.views],
+      ["reach", r.reach],
+      ["likes", r.likes],
+      ["comments", r.comments],
+      ["shares", r.shares],
+      ["saves", r.saves],
+    ] as const
+  ).filter(([key]) => results[key] !== null);
+  return (
+    <section className="mt-4" aria-label={r.title}>
+      <p className="text-sm font-semibold">
+        {r.title} <span className="font-normal text-tinta-suave">{r.asOf(results.day)}</span>
+      </p>
+      <dl className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {cells.map(([key, label]) => (
+          <div key={key} className="rounded border border-borde bg-white/60 px-3 py-2">
+            <dt className="text-xs text-tinta-suave">{label}</dt>
+            <dd className="display text-2xl tabular-nums">{number.format(results[key]!)}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

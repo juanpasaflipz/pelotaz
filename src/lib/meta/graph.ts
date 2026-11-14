@@ -14,6 +14,9 @@ export const META_SCOPES = [
   "pages_manage_posts",
   "instagram_basic",
   "instagram_content_publish",
+  // Results of the posts Pelotaz published, to learn what works.
+  "instagram_manage_insights",
+  "read_insights",
 ];
 
 export class MetaApiError extends Error {
@@ -51,6 +54,17 @@ export interface ManagedPage {
   name: string;
   accessToken: string;
   instagram: { id: string; username: string | null } | null;
+}
+
+/** Lifetime results of one post. Null where the channel does not report the number. */
+export interface PostResults {
+  views: number | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saves: number | null;
+  interactions: number | null;
 }
 
 export interface Published {
@@ -205,6 +219,80 @@ export function createGraphClient(config: MetaConfig, fetchImpl: FetchLike = fet
         () => ({ permalink: undefined }),
       );
       return { id: media.id, permalink: details.permalink ?? null };
+    },
+
+    /**
+     * Results of an Instagram post or story. Metrics are asked for one at a
+     * time: Meta renames and retires them, and a request naming one it no
+     * longer knows fails whole. An expired token still throws.
+     */
+    async instagramResults(mediaId: string, token: string, story: boolean): Promise<PostResults> {
+      const metrics = story
+        ? ["views", "reach", "shares", "total_interactions"]
+        : ["views", "reach", "likes", "comments", "shares", "saved", "total_interactions"];
+      const values: Record<string, number | null> = {};
+      for (const metric of metrics) {
+        values[metric] = await call<{ data: Array<{ values?: Array<{ value: number }>; total_value?: { value: number } }> }>(
+          `${mediaId}/insights`,
+          { access_token: token, metric },
+        )
+          .then((result) => {
+            const entry = result.data[0];
+            const value = entry?.total_value?.value ?? entry?.values?.[0]?.value;
+            return typeof value === "number" ? value : null;
+          })
+          .catch((error: unknown) => {
+            if (error instanceof MetaApiError && error.needsReconnect) throw error;
+            return null;
+          });
+      }
+      return {
+        views: values.views ?? null,
+        reach: values.reach ?? null,
+        likes: values.likes ?? null,
+        comments: values.comments ?? null,
+        shares: values.shares ?? null,
+        saves: values.saved ?? null,
+        interactions: values.total_interactions ?? null,
+      };
+    },
+
+    /**
+     * Results of a Page post: reactions, comments and shares from the post
+     * itself, and views and reach from insights where Meta still reports
+     * them (it retired the old reach metrics in June 2026).
+     */
+    async facebookResults(postId: string, token: string): Promise<PostResults> {
+      const post = await call<{
+        reactions?: { summary?: { total_count?: number } };
+        comments?: { summary?: { total_count?: number } };
+        shares?: { count?: number };
+      }>(postId, {
+        access_token: token,
+        fields: "reactions.summary(true).limit(0),comments.summary(true).limit(0),shares",
+      });
+      const insight = (metric: string) =>
+        call<{ data: Array<{ values?: Array<{ value: number }> }> }>(`${postId}/insights`, { access_token: token, metric })
+          .then((result) => {
+            const value = result.data[0]?.values?.[0]?.value;
+            return typeof value === "number" ? value : null;
+          })
+          .catch((error: unknown) => {
+            if (error instanceof MetaApiError && error.needsReconnect) throw error;
+            return null;
+          });
+      const likes = post.reactions?.summary?.total_count ?? null;
+      const comments = post.comments?.summary?.total_count ?? null;
+      const shares = post.shares?.count ?? 0;
+      return {
+        views: await insight("post_media_view"),
+        reach: await insight("post_total_media_view_unique"),
+        likes,
+        comments,
+        shares,
+        saves: null,
+        interactions: (likes ?? 0) + (comments ?? 0) + shares,
+      };
     },
 
     /** A Page post: with a photo when there is one, otherwise text only. */

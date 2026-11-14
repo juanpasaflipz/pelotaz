@@ -15,7 +15,8 @@ This repository covers **phase 1** (the multi-tenant foundation, site crawling, 
 7. Every post is checked like the profile: prices in code against the site and the profile, banned words in code, and a second model pass for claims the profile does not support. The owner's own edits get the code checks too.
 8. The owner edits, approves, rejects or asks for a rewrite ("más corto, sin emojis"). Approved posts are copied out by hand for now; nothing is published automatically.
 9. **Publicación automática**: with the brand's Facebook Page and Instagram account connected, approving a post schedules it for its day at the time the owner picks (12:30 by default). A scheduler publishes due posts. Failures go back to the owner as "approved" with the reason; a post interrupted mid-send is never re-sent automatically.
-10. **Aprende de tus cambios**: Pelotaz compares the drafts with the owner's edits and proposes profile changes: facts they corrected (a price, a recipe, the rating) and style they changed the same way in two or more posts. The owner ticks which to apply; applied changes become a new profile version marked "ajustada con tus comentarios". The model can only propose from a fixed set of operations, which code applies, so it cannot rewrite anything it does not show.
+10. **Resultados**: once a day, for 30 days after publishing, Pelotaz reads each post's views, reach, likes, comments, shares and saves from Meta and shows them on the post. The planner sees the latest results of recent posts and leans toward what earned more interactions for its reach.
+11. **Aprende de tus cambios**: Pelotaz compares the drafts with the owner's edits and proposes profile changes: facts they corrected (a price, a recipe, the rating) and style they changed the same way in two or more posts. The owner ticks which to apply; applied changes become a new profile version marked "ajustada con tus comentarios". The model can only propose from a fixed set of operations, which code applies, so it cannot rewrite anything it does not show.
 
 ## Setup
 
@@ -83,7 +84,7 @@ src/
     limits.ts        per-tenant ceilings on brands and onboarding runs
   app/               pages, server actions, two route handlers
   i18n/es.ts         every string the product shows
-drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review, 0004 publishing)
+drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review, 0004 publishing, 0005 post results)
 test/                suites plus an invented restaurant site as a fixture
 ```
 
@@ -135,7 +136,7 @@ The crawled text is passed to the model as fenced, untrusted data with an instru
 Off until these are set: `META_APP_ID`, `META_APP_SECRET`, `TOKEN_ENCRYPTION_KEY` (`openssl rand -base64 32`), and `APP_URL` (on Vercel the production address is used when it is unset). Optional: `META_LOGIN_CONFIG_ID` for Facebook Login for Business.
 
 1. **Meta app.** In developers.facebook.com create an app of type *Business*, add *Facebook Login for Business* and *Instagram* (API with Facebook Login). Valid OAuth redirect URI: `https://www.pelotaz.com/api/connect/meta/callback`.
-2. **Permissions.** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`. While the app is in development mode they work for people with a role on the app; customers need *Advanced access*, which needs Meta's App Review and Business Verification.
+2. **Permissions.** `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`, and for results `instagram_manage_insights` and `read_insights`. They go in the Facebook Login for Business configuration (`META_LOGIN_CONFIG_ID`); a connection made before a permission was added must be made again. While the app is in development mode they work for people with a role on the app; customers need *Advanced access*, which needs Meta's App Review and Business Verification.
 3. **Accounts.** The Instagram account must be a professional (business or creator) account linked to the Facebook Page.
 4. **Scheduler.** `vercel.json` has Vercel Cron call `/api/cron/publish` every 10 minutes; set `CRON_SECRET` (at least 32 characters) in Vercel and it sends it as `Authorization: Bearer`. Every-10-minute crons need Vercel Pro. Any other scheduler (n8n) can call the same route with `Authorization: Bearer <INTERNAL_API_SECRET>`.
 

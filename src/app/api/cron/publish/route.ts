@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { publishDue } from "@/lib/publishing/service";
+import { collectResults, publishDue } from "@/lib/publishing/service";
 import { isPublishingConfigured, publishDeps } from "@/lib/publishing/runtime";
 
 export const maxDuration = 300;
@@ -24,8 +24,19 @@ function authorized(request: Request): boolean {
 async function handle(request: Request) {
   if (!authorized(request)) return Response.json({ error: "unauthorized" }, { status: 401 });
   if (!isPublishingConfigured()) return Response.json({ error: "not_configured" }, { status: 503 });
-  const results = await publishDue(publishDeps());
-  return Response.json({ published: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length, results });
+  const deps = publishDeps();
+  const results = await publishDue(deps);
+  // Then the day's results for posts already out; each post is read once a day.
+  const metrics = await collectResults(deps).catch((error) => {
+    console.error("results run failed", { error: error instanceof Error ? error.message : error });
+    return { updated: 0, failed: 0 };
+  });
+  return Response.json({
+    published: results.filter((r) => r.ok).length,
+    failed: results.filter((r) => !r.ok).length,
+    results,
+    metrics,
+  });
 }
 
 export const GET = handle;
