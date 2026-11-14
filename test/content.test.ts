@@ -308,6 +308,12 @@ describe("weekly plan", () => {
       decision: "approve",
     });
     expect(await requestPlan(db, tenantId, brandId, LIMITS)).toEqual({ state: "has_approved", planId });
+
+    // Scheduled and published posts count as approved too.
+    for (const status of ["scheduled", "published"] as const) {
+      await db.update(contentItems).set({ status }).where(eq(contentItems.id, first.item.id));
+      expect(await requestPlan(db, tenantId, brandId, LIMITS)).toEqual({ state: "has_approved", planId });
+    }
   });
 
   it("refuses a brand whose profile is not ready, and enforces the daily limit", async () => {

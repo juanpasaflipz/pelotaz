@@ -109,7 +109,7 @@ export async function requestPlan(
       const [approved] = await tx
         .select({ id: contentItems.id })
         .from(contentItems)
-        .where(and(eq(contentItems.planId, existing.id), eq(contentItems.status, "approved")))
+        .where(and(eq(contentItems.planId, existing.id), inArray(contentItems.status, DECIDED)))
         .limit(1);
       if (approved) return { state: "has_approved", planId: existing.id };
     }
@@ -380,6 +380,17 @@ export async function publishNow(db: Db, tenantId: string, itemId: string): Prom
 }
 
 export type ItemError = "not_found" | "not_editable" | "empty" | "daily_limit" | "busy";
+
+/**
+ * Posts the owner has said yes to, wherever they are on the way out. A new
+ * plan must never replace these.
+ */
+export const DECIDED: Array<(typeof contentItems.status.enumValues)[number]> = [
+  "approved",
+  "scheduled",
+  "publishing",
+  "published",
+];
 
 /** Statuses in which the owner may still change or decide on a post. */
 const OPEN: Array<(typeof contentItems.status.enumValues)[number]> = ["needs_approval", "rejected", "failed", "approved"];

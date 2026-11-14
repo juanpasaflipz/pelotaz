@@ -8,7 +8,7 @@ import { PlanProgress } from "@/components/week/plan-progress";
 import { PostCard } from "@/components/week/post-card";
 import { LearningPanel } from "@/components/week/learning-panel";
 import { ChannelsPanel } from "@/components/week/channels-panel";
-import { DEFAULT_PUBLISH_TIME } from "@/lib/content/service";
+import { DECIDED, DEFAULT_PUBLISH_TIME } from "@/lib/content/service";
 import { timeZoneOf, utcToLocalTime } from "@/lib/markets";
 import { isPublishingConfigured } from "@/lib/publishing/runtime";
 import { latestPublications, listConnections } from "@/lib/publishing/service";
@@ -81,7 +81,7 @@ async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/s
 
   const drafting = week?.items.filter(({ item }) => item.status === "drafting").length ?? 0;
   const running = week && (["queued", "planning", "drafting"].includes(week.plan.status) || drafting > 0);
-  const approved = week?.items.filter(({ item }) => item.status === "approved").length ?? 0;
+  const approved = week?.items.filter(({ item }) => DECIDED.includes(item.status)).length ?? 0;
 
   return (
     <>
