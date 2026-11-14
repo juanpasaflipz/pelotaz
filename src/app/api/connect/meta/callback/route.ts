@@ -37,7 +37,10 @@ export async function GET(request: Request) {
     const graph = createGraphClient(config);
     const userToken = await graph.userToken(code, metaRedirectUri());
     const pages = await graph.pages(userToken);
-    if (pages.length === 0) return back(state.brandId, "no_pages");
+    if (pages.length === 0) {
+      console.warn("meta connect: no pages granted", { brandId: state.brandId });
+      return back(state.brandId, "no_pages");
+    }
     const saved = await saveConnections(systemDb(), session.tenantId, state.brandId, pages);
     return back(state.brandId, saved.active ? "connected" : "choose");
   } catch (error) {

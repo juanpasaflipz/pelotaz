@@ -242,7 +242,8 @@ export const es = {
       connected: "Listo: Facebook e Instagram conectados.",
       choose: "Elige la página de esta marca.",
       cancelled: "Cancelaste la conexión con Facebook.",
-      no_pages: "Tu cuenta de Facebook no administra ninguna página. Crea o pide acceso a la página del negocio y vuelve a intentar.",
+      no_pages:
+        "No recibimos ninguna página. Vuelve a conectar y, cuando Facebook lo pida, selecciona la página del negocio y su cuenta de Instagram.",
       error: "No pudimos conectar con Facebook. Intenta de nuevo.",
     } as Record<string, string>,
   },

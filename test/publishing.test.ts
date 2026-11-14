@@ -180,6 +180,50 @@ describe("Graph client", () => {
   });
 });
 
+describe("finding the Pages to publish to", () => {
+  it("falls back to the Pages granted in the login dialog when me/accounts is empty", async () => {
+    const urls: string[] = [];
+    const fetchImpl: FetchLike = async (url) => {
+      urls.push(url);
+      const path = new URL(url).pathname.split("/").slice(2).join("/");
+      const reply =
+        path === "me/accounts"
+          ? { data: [] }
+          : path === "debug_token"
+            ? {
+                data: {
+                  granular_scopes: [
+                    { scope: "pages_show_list", target_ids: ["111"] },
+                    { scope: "pages_manage_posts", target_ids: ["111", "222"] },
+                    { scope: "instagram_basic", target_ids: ["ig-9"] },
+                  ],
+                },
+              }
+            : path === "111"
+              ? { id: "111", name: "Juanberto's", access_token: "pt-111", instagram_business_account: { id: "ig-9", username: "juanbertos" } }
+              : { id: "222", name: "Sin token" };
+      return { ok: true, status: 200, json: async () => reply };
+    };
+    const graph = createGraphClient({ appId: "app", appSecret: "secret" }, fetchImpl);
+    expect(await graph.pages("user-token")).toEqual([
+      { id: "111", name: "Juanberto's", accessToken: "pt-111", instagram: { id: "ig-9", username: "juanbertos" } },
+    ]);
+    // The app token goes only to debug_token; Instagram ids are never fetched as Pages.
+    expect(urls.some((url) => url.includes("/ig-9?"))).toBe(false);
+    expect(urls.find((url) => url.includes("debug_token"))).toContain("access_token=app%7Csecret");
+  });
+
+  it("uses me/accounts when it lists Pages", async () => {
+    const fetchImpl: FetchLike = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ id: "1", name: "P", access_token: "t" }] }),
+    });
+    const graph = createGraphClient({ appId: "a", appSecret: "s" }, fetchImpl);
+    expect(await graph.pages("u")).toEqual([{ id: "1", name: "P", accessToken: "t", instagram: null }]);
+  });
+});
+
 describe("time zones", () => {
   it("turns a brand-local time into the right instant", () => {
     expect(localToUtc("2026-11-17", "12:30", "MX").toISOString()).toBe("2026-11-17T18:30:00.000Z");

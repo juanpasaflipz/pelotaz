@@ -116,28 +116,56 @@ export function createGraphClient(config: MetaConfig, fetchImpl: FetchLike = fet
       return long.access_token;
     },
 
-    /** Pages the person manages. Page tokens got from a long-lived user token do not expire. */
+    /**
+     * Pages the person chose to share with Pelotaz. Page tokens got from a
+     * long-lived user token do not expire.
+     *
+     * `me/accounts` lists Pages the person holds a role on directly. A Page
+     * owned by a business portfolio is often missing from it unless the app
+     * has business_management, which Pelotaz does not ask for. Facebook Login
+     * for Business records the Pages picked in its dialog on the token itself
+     * (granular scopes), so those are read one by one as a fallback.
+     */
     async pages(userToken: string): Promise<ManagedPage[]> {
-      const result = await call<{
-        data: Array<{
-          id: string;
-          name: string;
-          access_token: string;
-          instagram_business_account?: { id: string; username?: string };
-        }>;
-      }>("me/accounts", {
-        access_token: userToken,
-        fields: "id,name,access_token,instagram_business_account{id,username}",
-        limit: "100",
-      });
-      return result.data.map((page) => ({
-        id: page.id,
-        name: page.name,
-        accessToken: page.access_token,
-        instagram: page.instagram_business_account
-          ? { id: page.instagram_business_account.id, username: page.instagram_business_account.username ?? null }
-          : null,
-      }));
+      type RawPage = {
+        id: string;
+        name: string;
+        access_token?: string;
+        instagram_business_account?: { id: string; username?: string };
+      };
+      const fields = "id,name,access_token,instagram_business_account{id,username}";
+      const toPage = (page: RawPage): ManagedPage | null =>
+        page.access_token
+          ? {
+              id: page.id,
+              name: page.name,
+              accessToken: page.access_token,
+              instagram: page.instagram_business_account
+                ? { id: page.instagram_business_account.id, username: page.instagram_business_account.username ?? null }
+                : null,
+            }
+          : null;
+
+      const listed = await call<{ data: RawPage[] }>("me/accounts", { access_token: userToken, fields, limit: "100" });
+      const pages = listed.data.map(toPage).filter((page): page is ManagedPage => page !== null);
+      if (pages.length > 0) return pages;
+
+      const debug = await call<{ data: { granular_scopes?: Array<{ scope: string; target_ids?: string[] }> } }>(
+        "debug_token",
+        { input_token: userToken, access_token: `${config.appId}|${config.appSecret}` },
+      );
+      const granted = new Set(
+        (debug.data.granular_scopes ?? [])
+          .filter((grant) => grant.scope.startsWith("pages_"))
+          .flatMap((grant) => grant.target_ids ?? []),
+      );
+      const found: ManagedPage[] = [];
+      for (const pageId of [...granted].slice(0, 50)) {
+        const page = await call<RawPage>(pageId, { access_token: userToken, fields }).catch(() => null);
+        const parsed = page && toPage(page);
+        if (parsed) found.push(parsed);
+      }
+      return found;
     },
 
     /** One photo (JPEG at a public URL) to an Instagram feed or story. */
