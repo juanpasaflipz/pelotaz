@@ -152,7 +152,7 @@ async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/s
       />
 
       {week && week.plan.rationale && (
-        <section className="mt-8 border-l-4 border-pelota bg-raya px-5 py-4">
+        <section className="mt-8 border-l-4 border-bola bg-raya px-5 py-4">
           <h2 className="font-semibold">{t.why}</h2>
           <p className="mt-1 max-w-prose">{week.plan.rationale}</p>
         </section>

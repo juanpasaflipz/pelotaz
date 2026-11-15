@@ -12,7 +12,7 @@ export function AccessNotice({ kind, email }: { kind: "unverified" | "not_invite
   const [state, verify, verifying] = useActionState<VerifyState, FormData>(verifyEmailCode, { error: null });
 
   return (
-    <div className="mt-6 max-w-prose border-l-4 border-pelota bg-raya px-5 py-4">
+    <div className="mt-6 max-w-prose border-l-4 border-bola bg-raya px-5 py-4">
       <p className="display text-2xl">{kind === "unverified" ? t.unverifiedTitle : t.notInvitedTitle}</p>
       <p className="mt-1">{kind === "unverified" ? t.unverifiedBody(email) : t.notInvitedBody(email)}</p>
       {kind === "unverified" && (

@@ -23,7 +23,7 @@ export default function Page({ searchParams }: PageProps<"/auth/sign-in">) {
 async function ResetNotice({ searchParams }: Pick<PageProps<"/auth/sign-in">, "searchParams">) {
   const { restablecida } = await searchParams;
   return restablecida ? (
-    <p role="status" className="mt-6 max-w-md rounded bg-raya px-3 py-2 font-medium text-cancha">
+    <p role="status" className="mt-6 max-w-md rounded bg-raya px-3 py-2 font-medium text-ok">
       {es.auth.resetDone}
     </p>
   ) : null;
