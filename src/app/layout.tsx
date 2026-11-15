@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import "@fontsource-variable/nunito";
 import "@fontsource-variable/instrument-sans";
 import "./globals.css";
-import { AccountMenu } from "@/components/account-menu";
+import { HeaderNav } from "@/components/header-nav";
 import { Logo } from "@/components/logo";
 import { es } from "@/i18n/es";
 
@@ -27,14 +27,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/">
               <Logo name={es.app.name} />
             </Link>
-            <nav className="flex items-center gap-5">
-              <Link href="/" className="text-sm font-medium underline-offset-4 hover:underline">
-                {es.app.brands}
-              </Link>
-              <Suspense fallback={null}>
-                <AccountMenu />
-              </Suspense>
-            </nav>
+            <Suspense fallback={null}>
+              <HeaderNav />
+            </Suspense>
           </div>
         </header>
         {children}

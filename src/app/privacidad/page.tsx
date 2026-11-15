@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CONTACT, LegalPage, UPDATED } from "@/components/legal-page";
+import { CONTACT, LegalPage } from "@/components/legal-page";
 
 export const metadata: Metadata = { title: "Aviso de privacidad" };
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Aviso de privacidad" updated={UPDATED}>
+    <LegalPage title="Aviso de privacidad" updated="15 de noviembre de 2026">
       <p>
         Pelotaz (pelotaz.com) es un servicio que ayuda a negocios a planear, escribir y publicar contenido para sus
         redes sociales. Este aviso explica qué datos tratamos, para qué y cómo puedes ejercer tus derechos. Para
@@ -15,6 +15,10 @@ export default function PrivacyPage() {
 
       <h2>Qué datos tratamos</h2>
       <ul>
+        <li>
+          <strong>Si pides acceso a la beta:</strong> tu correo electrónico, el nombre de tu negocio y la dirección de
+          su sitio web.
+        </li>
         <li>
           <strong>Tu cuenta:</strong> nombre, correo electrónico y contraseña (guardada cifrada por nuestro proveedor de
           inicio de sesión).
@@ -44,6 +48,7 @@ export default function PrivacyPage() {
 
       <h2>Para qué los usamos</h2>
       <ul>
+        <li>Responder tu solicitud de acceso a la beta y avisarte cuando esté lista.</li>
         <li>Crear y mantener tu cuenta y tu espacio de trabajo.</li>
         <li>Armar el perfil de tu marca y escribir propuestas de publicaciones con ayuda de modelos de lenguaje.</li>
         <li>
@@ -74,7 +79,8 @@ export default function PrivacyPage() {
 
       <h2>Cuánto tiempo los guardamos</h2>
       <p>
-        Mientras tu cuenta esté activa. Si desconectas Facebook e Instagram, borramos los tokens de acceso en ese
+        Mientras tu cuenta esté activa. Las solicitudes de acceso se guardan mientras dure la beta; puedes pedirnos
+        borrar la tuya en cualquier momento. Si desconectas Facebook e Instagram, borramos los tokens de acceso en ese
         momento. Si nos pides cerrar tu cuenta, borramos tus datos en un máximo de 30 días, salvo lo que la ley nos
         obligue a conservar.
       </p>

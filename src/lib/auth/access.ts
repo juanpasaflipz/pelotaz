@@ -1,5 +1,5 @@
-import { asc, eq, sql } from "drizzle-orm";
-import { memberships, tenants } from "@/db/schema";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { accessRequests, memberships, tenants } from "@/db/schema";
 import type { Db } from "@/db/tenant";
 
 /** A signed-in person, as the auth provider describes them. */
@@ -13,7 +13,8 @@ export interface Identity {
 export interface AccessPolicy {
   /**
    * Who may get a workspace: full addresses ("ana@taqueria.mx") or whole
-   * domains ("@taqueria.mx"). Empty means anyone who signs up.
+   * domains ("@taqueria.mx"). Empty means anyone who signs up. An approved
+   * access request lets its address in as well.
    */
   allowlist: string[];
   /** Local development only. Lets an unverified address in. */
@@ -40,6 +41,21 @@ export function isAllowed(email: string, allowlist: string[]): boolean {
 }
 
 /**
+ * Whether an address may have a workspace: on the allowlist, or holding an
+ * access request that an admin approved. Rejecting the request later takes
+ * the access away again, since this is asked on every request.
+ */
+export async function isInvited(db: Pick<Db, "select">, email: string, allowlist: string[]): Promise<boolean> {
+  if (isAllowed(email, allowlist)) return true;
+  const [approved] = await db
+    .select({ id: accessRequests.id })
+    .from(accessRequests)
+    .where(and(eq(accessRequests.email, email.trim().toLowerCase()), eq(accessRequests.status, "approved")))
+    .limit(1);
+  return Boolean(approved);
+}
+
+/**
  * Decide what a signed-in person may reach, creating their workspace the
  * first time they are let in.
  *
@@ -50,7 +66,7 @@ export function isAllowed(email: string, allowlist: string[]): boolean {
 export async function resolveAccess(db: Db, identity: Identity, policy: AccessPolicy): Promise<Access> {
   const email = identity.email.trim().toLowerCase();
   if (!identity.emailVerified && !policy.allowUnverified) return { kind: "unverified", email };
-  if (!isAllowed(email, policy.allowlist)) return { kind: "not_invited", email };
+  if (!(await isInvited(db, email, policy.allowlist))) return { kind: "not_invited", email };
 
   const find = (executor: Pick<Db, "select">) =>
     executor
@@ -60,7 +76,8 @@ export async function resolveAccess(db: Db, identity: Identity, policy: AccessPo
       .orderBy(asc(memberships.createdAt))
       .limit(1);
 
-  // This runs on every request, so the common case is one indexed read.
+  // This runs on every request, so the common case is one indexed read
+  // (two for someone let in by an approved request).
   const [existing] = await find(db);
   if (existing) return { kind: "ok", tenantId: existing.tenantId, userId: identity.userId, email };
 

@@ -523,3 +523,42 @@ export const jobs = pgTable(
     tenantPolicy("jobs"),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Private beta: requests for access
+// ---------------------------------------------------------------------------
+
+export const accessRequestStatus = pgEnum("access_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+]);
+
+/**
+ * Someone asking to join the private beta from the public page. This is not
+ * tenant data: the person has no account yet. Row-level security is on and no
+ * policy or grant exists for `app_tenant`, so request-scoped code cannot read
+ * the list; only `systemDb()` can.
+ *
+ * An approved row works like an entry in `SIGNUP_ALLOWLIST` for that address.
+ */
+export const accessRequests = pgTable(
+  "access_requests",
+  {
+    id: id(),
+    /** Lowercased. One row per address. */
+    email: text("email").notNull(),
+    businessName: text("business_name").notNull(),
+    /** As checked by `parsePublicUrl`, so it can go straight into onboarding. */
+    website: text("website").notNull(),
+    status: accessRequestStatus("status").notNull().default("pending"),
+    createdAt: createdAt(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** The admin's address. */
+    decidedBy: text("decided_by"),
+  },
+  (t) => [
+    uniqueIndex("access_requests_email").on(t.email),
+    index("access_requests_status_created").on(t.status, t.createdAt),
+  ],
+).enableRLS();

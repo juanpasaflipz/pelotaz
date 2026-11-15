@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { isAllowed, parseAllowlist } from "@/lib/auth/access";
+import { systemDb } from "@/db/client";
+import { isInvited, parseAllowlist } from "@/lib/auth/access";
 import { classifyAuthError, isOperatorProblem, type AuthError, type ProviderError } from "@/lib/auth/errors";
 import { emailOtp, isNeonAuthConfigured, neonAuth } from "@/lib/auth/neon";
 
@@ -48,7 +49,7 @@ export async function signUp(_previous: AuthFormState, formData: FormData): Prom
   if (!isNeonAuthConfigured()) return { error: "unavailable", email };
   // Checked again when the workspace is created; this only saves an
   // uninvited person from making an account they cannot use.
-  if (!isAllowed(email, parseAllowlist(process.env.SIGNUP_ALLOWLIST))) {
+  if (!(await isInvited(systemDb(), email, parseAllowlist(process.env.SIGNUP_ALLOWLIST)))) {
     return { error: "not_invited", email };
   }
 
