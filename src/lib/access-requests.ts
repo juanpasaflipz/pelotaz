@@ -24,7 +24,7 @@ export type SubmitResult =
 /** Ceiling on new requests per 24 hours, so a script cannot fill the table. */
 export function accessRequestsPerDay(): number {
   const raw = Number(process.env.ACCESS_REQUESTS_PER_DAY);
-  return Number.isInteger(raw) && raw > 0 ? raw : 200;
+  return Number.isInteger(raw) && raw > 0 ? raw : 1000;
 }
 
 const emailSchema = z.email().max(254);
