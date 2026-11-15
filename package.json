@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/check-node.cjs && tsx scripts/migrate.ts",
+    "db:migrate:deploy": "node scripts/check-node.cjs && tsx scripts/deploy-migrate.ts",
     "db:seed": "node scripts/check-node.cjs && tsx scripts/seed.ts",
     "db:seed:demo": "node scripts/check-node.cjs && tsx scripts/seed-demo.ts",
     "try": "node scripts/check-node.cjs && tsx scripts/try.ts",
