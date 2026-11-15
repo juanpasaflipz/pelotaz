@@ -17,7 +17,9 @@ export default function proxy(request: NextRequest) {
     // /api/internal and /api/cron are called by schedulers with their own secret;
     // /api/media is fetched by Meta's servers when a post is published.
     // The legal pages must be readable by anyone, Meta's reviewers included.
+    // "/" matches the home page only: signed-out visitors get the public page there.
     publicRoutes: [
+      "/",
       "/auth/sign-in",
       "/auth/sign-up",
       "/auth/olvide",

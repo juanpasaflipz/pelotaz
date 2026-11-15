@@ -75,6 +75,13 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
           {signingUp ? t.signIn : t.signUp}
         </Link>
       </p>
+      {state.error === "not_invited" && (
+        <p className="text-sm">
+          <Link href="/#acceso" className="font-semibold underline underline-offset-4">
+            {t.requestAccess}
+          </Link>
+        </p>
+      )}
       {!signingUp && (
         <p className="text-sm">
           <Link href="/auth/olvide" className="underline underline-offset-4">

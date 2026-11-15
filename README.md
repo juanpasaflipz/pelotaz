@@ -111,9 +111,19 @@ Sign-in is Neon Auth, which is Better Auth run by Neon: users and sessions are s
 - **The address must be confirmed.** Turn on "Verify email at signup" in the Neon Console. An unconfirmed account is held at a "confirma tu correo" screen and gets no workspace.
 - **`SIGNUP_ALLOWLIST`, when set, limits who gets a workspace** to listed addresses or domains. Confirmation is checked first, so nobody can claim an invited address they do not control.
 
+### Private beta: public page and access requests
+
+Signed-out visitors to `/` see the public page (`src/components/landing.tsx`), which says what the beta includes and has a form asking for access: email, business name and website. The website passes the crawler's own URL check, so an approved request can go straight into onboarding.
+
+Requests land in `access_requests` as `pending`. That table has row-level security on and no grant for `app_tenant`, so only `systemDb()` reads it. People listed in `ADMIN_EMAILS` decide them at `/admin/solicitudes`. An approved request works like an allowlist entry for that address, and rejecting it later takes the access away on the person's next request.
+
+- **Keep `SIGNUP_ALLOWLIST` set in production** (your own address is enough). When it is empty anyone who signs up gets a workspace and the request step means nothing.
+- **Pelotaz sends no email about requests.** The admin page shows a count of waiting requests in the header, and each approved request has a link that opens your mail app with the invitation written.
+- **The form's answer is the same for a new and a repeated address**, and `ACCESS_REQUESTS_PER_DAY` caps new requests so a script cannot fill the table.
+
 **Every domain the app runs on must be a trusted domain in Neon Auth** (Console, Auth, Configuration, Domains): for example `https://www.pelotaz.com` and `https://pelotaz.com`, with the protocol and no trailing slash. Localhost is trusted by default, so sign-in works locally and then fails on a new production domain until this is done. The forms say so when it happens, and the server log records the provider's reply.
 
-`src/proxy.ts` redirects signed-out visitors to the sign-in page. It is a convenience: every page, action and route handler checks the session itself.
+`src/proxy.ts` redirects signed-out visitors to the sign-in page, except on `/` and the other public routes it lists. It is a convenience: every page, action and route handler checks the session itself.
 
 Without the Neon settings, `AUTH_MODE=dev` signs every request in as one tenant for local work and refuses to run in a production build.
 

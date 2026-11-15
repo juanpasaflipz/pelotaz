@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { AccessNotice } from "@/components/access-notice";
+import { Landing } from "@/components/landing";
 import { NewBrandForm } from "@/components/new-brand-form";
 import { SetupNotice } from "@/components/setup-notice";
 import { StatusLabel } from "@/components/status-label";
@@ -15,44 +15,48 @@ export const maxDuration = 300;
 
 export default function HomePage() {
   return (
+    <Suspense fallback={<div className="wall min-h-[70dvh]" aria-hidden />}>
+      <Home />
+    </Suspense>
+  );
+}
+
+/**
+ * Signed-out visitors get the public page; everyone else gets their
+ * workspace, or the reason they do not have one yet.
+ */
+async function Home() {
+  await connection();
+  const access = await getAccessOrSetup();
+  if (access.kind === "signed_out") return <Landing />;
+  return (
     <main>
       <section className="wall">
         <div className="mx-auto max-w-4xl px-5 pb-12 pt-10">
           <h1 className="display max-w-2xl text-5xl sm:text-7xl">{es.home.title}</h1>
           <p className="mt-4 max-w-xl text-lg">{es.home.lead}</p>
-          <Suspense fallback={null}>
-            <BrandForm />
-          </Suspense>
+          {/* Only for someone who may act on a workspace; the section below says why not. */}
+          {access.kind === "ok" && <NewBrandForm />}
         </div>
       </section>
 
       <section className="mx-auto max-w-4xl px-5 py-12">
-        <Suspense fallback={<div className="mt-6 h-24 rounded bg-borde/50" aria-hidden />}>
-          <Workspace />
-        </Suspense>
+        {access.kind === "setup" ? (
+          <SetupNotice />
+        ) : access.kind !== "ok" ? (
+          <AccessNotice kind={access.kind} email={access.email} />
+        ) : (
+          <Suspense fallback={<div className="mt-6 h-24 rounded bg-borde/50" aria-hidden />}>
+            <Workspace tenantId={access.tenantId} />
+          </Suspense>
+        )}
       </section>
     </main>
   );
 }
 
-/**
- * The form appears only when the person may act on a workspace; otherwise
- * the section below says why (unconfirmed, uninvited). Showing it anyway
- * offers a submission the server would refuse.
- */
-async function BrandForm() {
-  await connection();
-  const access = await getAccessOrSetup();
-  return access.kind === "ok" ? <NewBrandForm /> : null;
-}
-
-async function Workspace() {
-  await connection();
-  const access = await getAccessOrSetup();
-  if (access.kind === "setup") return <SetupNotice />;
-  if (access.kind === "signed_out") redirect("/auth/sign-in");
-  if (access.kind !== "ok") return <AccessNotice kind={access.kind} email={access.email} />;
-  const brands = await listBrands(access.tenantId);
+async function Workspace({ tenantId }: { tenantId: string }) {
+  const brands = await listBrands(tenantId);
   return (
     <>
       <h2 className="display text-3xl">{es.home.listTitle}</h2>

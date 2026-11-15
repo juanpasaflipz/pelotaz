@@ -8,6 +8,75 @@ export const es = {
     name: "Pelotaz",
     tagline: "Marketing en piloto automático para tu negocio",
     brands: "Marcas",
+    requests: "Solicitudes",
+  },
+  landing: {
+    badge: "Beta privada · sin costo",
+    title: "Marketing en piloto automático para tu negocio",
+    lead: "Pelotaz lee tu sitio web, arma el perfil de tu marca y cada semana te propone las publicaciones para Instagram y Facebook. Tú revisas y apruebas.",
+    cta: "Solicitar acceso",
+    includesTitle: "Qué incluye la beta",
+    includes: [
+      {
+        title: "Perfil de tu marca",
+        body: "Cómo habla tu negocio, a quién le vende y qué ofrece, armado a partir de tu sitio. Lo revisas y lo corriges antes de que se use.",
+      },
+      {
+        title: "Plan semanal",
+        body: "Entre 3 y 7 publicaciones propuestas para la semana, cada una con su motivo.",
+      },
+      {
+        title: "Borradores",
+        body: "El texto de cada publicación, listo para que lo edites, lo apruebes o pidas otra versión.",
+      },
+    ],
+    laterTitle: "Lo que viene después",
+    later:
+      "La publicación automática en Instagram y Facebook llegará más adelante. Durante la beta copias el texto que apruebas y lo publicas tú.",
+    stepsTitle: "Cómo entras",
+    steps: [
+      "Dejas tu correo y los datos de tu negocio.",
+      "Revisamos tu solicitud. El cupo de la beta es limitado.",
+      "Te escribimos cuando tu acceso esté listo y creas tu cuenta con ese mismo correo.",
+    ],
+    terms:
+      "Es una beta de prueba: no tiene costo y puede cambiar o fallar. Necesitas un sitio web público, porque de ahí sale el perfil de tu marca.",
+    formTitle: "Pide tu acceso",
+    email: "Correo electrónico",
+    business: "Nombre de tu negocio",
+    website: "Sitio web de tu negocio",
+    websitePlaceholder: "tutaqueria.mx",
+    consent: "Usamos estos datos solo para responder tu solicitud.",
+    privacy: "Aviso de privacidad",
+    submit: "Solicitar acceso",
+    submitting: "Enviando",
+    sentTitle: "Recibimos tu solicitud",
+    sent: (email: string) =>
+      `Te escribimos a ${email} cuando tu acceso esté listo. No necesitas hacer nada más por ahora.`,
+    haveAccess: "¿Ya tienes acceso?",
+    errors: {
+      invalid_email: "Ese correo no se ve bien escrito.",
+      missing_business: "Escribe el nombre de tu negocio.",
+      invalid_url: "Esa dirección no se ve bien escrita. Prueba con algo como tutaqueria.mx.",
+      private_url: "Esa dirección no es un sitio público. Usa la de tu sitio en internet.",
+      busy: "Recibimos muchas solicitudes hoy. Intenta de nuevo mañana.",
+    },
+  },
+  admin: {
+    title: "Solicitudes de acceso",
+    lead: "Quien apruebes puede crear su cuenta con ese correo. Pelotaz no envía el aviso: usa el enlace para escribirle.",
+    pending: "Pendientes",
+    approved: "Aprobadas",
+    rejected: "Rechazadas",
+    none: "Nada aquí.",
+    approve: "Aprobar",
+    reject: "Rechazar",
+    revoke: "Quitar acceso",
+    notify: "Avisarle por correo",
+    asked: (day: string) => `Pidió acceso el ${day}`,
+    inviteSubject: "Tu acceso a Pelotaz está listo",
+    inviteBody: (business: string, url: string, email: string) =>
+      `Hola:\n\nYa puedes probar Pelotaz con ${business}. Crea tu cuenta aquí usando este mismo correo (${email}):\n\n${url}\n\nEs una beta privada y sin costo: incluye el perfil de tu marca, el plan semanal y los borradores de tus publicaciones. La publicación automática llegará más adelante.\n\nCualquier duda, responde a este correo.`,
   },
   home: {
     title: "Empieza con tu sitio web",
@@ -346,6 +415,7 @@ export const es = {
     passwordHint: "Mínimo 8 caracteres.",
     working: "Un momento",
     noAccount: "¿No tienes cuenta?",
+    requestAccess: "Solicitar acceso",
     haveAccount: "¿Ya tienes cuenta?",
     justRegistered: "Si acabas de registrarte, revisa tu correo para confirmar tu cuenta antes de entrar.",
     errors: {
@@ -353,7 +423,7 @@ export const es = {
       weak_password: "La contraseña debe tener al menos 8 caracteres.",
       bad_credentials: "Correo o contraseña incorrectos.",
       sign_up_failed: "No pudimos crear la cuenta. Si ya tienes una, inicia sesión.",
-      not_invited: "Por ahora el registro es solo por invitación. Escríbenos para pedir acceso.",
+      not_invited: "Por ahora el registro es solo por invitación. Pide tu acceso desde la página de inicio.",
       unavailable: "El inicio de sesión no está disponible en este momento. Intenta más tarde.",
       invalid_email: "Ese correo no se ve bien escrito.",
       rate_limited: "Demasiados intentos seguidos. Espera unos minutos e intenta de nuevo.",
@@ -394,7 +464,7 @@ export const es = {
     resent: "Código enviado. Revisa también tu carpeta de spam.",
     notInvitedTitle: "Tu cuenta aún no tiene acceso",
     notInvitedBody: (email: string) =>
-      `Pelotaz está en piloto por invitación y ${email} no está en la lista. Escríbenos para pedir acceso.`,
+      `Pelotaz está en beta privada y ${email} todavía no tiene acceso. Si ya lo pediste, te escribimos cuando esté listo.`,
   },
   setup: {
     title: "Falta configurar el acceso",
