@@ -11,6 +11,7 @@ import {
   normalizePlan,
   PLAN_LIMITS,
   postDraftSchema,
+  rewriteDraftSchema,
   weekPlanSchema,
   type CandidateImage,
   type PostBrief,
@@ -289,8 +290,11 @@ export interface DraftInput {
   image: CandidateImage | null;
   /** Text of the brand's site, for the price check. */
   siteText: string;
-  /** The current copy and what the owner wants changed, for a rewrite. */
-  rewrite?: { copy: string; instruction: string };
+  /**
+   * The current post and what the owner wants changed. An empty instruction
+   * asks for a different version of the same post.
+   */
+  rewrite?: { copy: string; title: string; instruction: string };
   /**
    * Problems a check outside this post found in its previous version, such as
    * the week's gate finding a line repeated in another post. The correction edge.
@@ -304,6 +308,55 @@ export interface BuiltDraft {
   usage: LlmUsage[];
   /** Drafts written before this one passed or the attempts ran out, including it. */
   attempts: number;
+  /** With a rewrite: the post's title after it. */
+  title?: string;
+}
+
+/** Same words, ignoring case, accents, punctuation, emoji and spacing. */
+const sameText = (a: string, b: string) => {
+  const key = (text: string) =>
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\p{L}\p{N}$]+/gu, " ")
+      .trim();
+  return key(a) === key(b);
+};
+
+/**
+ * The owner's instruction goes last, after the profile, and outranks the
+ * plan's brief: models follow the end of a long prompt best, and a brief
+ * that says "angle: X" must not undo an owner who asked for Y.
+ */
+function rewriteSection(rewrite: NonNullable<DraftInput["rewrite"]>): string {
+  const lines = [
+    "REWRITE. The owner already has this post and wants a new version.",
+    "",
+    `Current title: ${rewrite.title}`,
+    "Current post:",
+    "<<<",
+    rewrite.copy,
+    ">>>",
+    "",
+  ];
+  if (rewrite.instruction) {
+    lines.push(
+      `The owner's instruction: ${rewrite.instruction}`,
+      "",
+      "- Carry out the instruction fully. It outranks the topic, angle, call to action and voice details above; only the facts rules come before it.",
+      "- If it asks for a different title, subject, product, tone, length or language, change that, even if the brief says otherwise.",
+      "- The new post must read clearly different from the current one where the instruction applies. Returning the current post, or changing only a word or two, is a failure.",
+      "- Keep what the instruction does not touch, unless it asks for a full rewrite.",
+      "- If part of the instruction would break a facts rule (an invented price or promotion, say), do the rest and leave that part out.",
+    );
+  } else {
+    lines.push(
+      "No instruction: write a fresh take on the same post, with a different hook, wording and structure. Do not reuse its sentences.",
+    );
+  }
+  lines.push("", 'Also return "title": the post\'s title after the rewrite.');
+  return lines.join("\n");
 }
 
 const describeImage = (image: CandidateImage) => {
@@ -404,16 +457,6 @@ export async function writeDraft(llm: Llm, critic: Llm, input: DraftInput): Prom
       ? `Calendar:\n${describeEvent({ ...brief.occasion, kind: "commercial" })}\nTie the post to this date only if it reads naturally.`
       : "Calendar: none. Do not mention any holiday, date or event.",
     `The owner's goal: ${GOALS[profile.goal]}.`,
-    ...(input.rewrite
-      ? [
-          "",
-          "This is a rewrite. Current post:",
-          input.rewrite.copy,
-          "",
-          `The owner asks: ${input.rewrite.instruction}`,
-          "Make that change and keep what the owner did not ask to change. The facts rules still apply.",
-        ]
-      : []),
     "",
     input.image
       ? `The post's photo: ${describeImage(input.image)}. Do not describe what the photo cannot show.`
@@ -421,15 +464,16 @@ export async function writeDraft(llm: Llm, critic: Llm, input: DraftInput): Prom
     "",
     "Brand profile (JSON):",
     profileForPrompt(profile),
+    ...(input.rewrite ? ["", rewriteSection(input.rewrite)] : []),
   ].join("\n");
 
   const external: LoopFailure[] = (input.feedback ?? []).map((problem) => ({ check: "week_gate", problem }));
 
   const attempt = async (feedback: LoopFailure[]) => {
     const all = [...external, ...feedback];
-    const drafted = await llm.generateObject({
+    const drafted = await llm.generateObject<{ caption: string; hashtags: string[]; title?: string }>({
       purpose: input.rewrite ? "content.rewrite" : "content.draft",
-      schema: postDraftSchema,
+      schema: input.rewrite ? rewriteDraftSchema : postDraftSchema,
       instructions: DRAFT_INSTRUCTIONS,
       prompt: all.length === 0 ? basePrompt : `${basePrompt}\n\n${fixSection(all, "post")}`,
     });
@@ -456,7 +500,10 @@ export async function writeDraft(llm: Llm, critic: Llm, input: DraftInput): Prom
     } catch {
       reviewFlags.push({ field: "", claim: "", reason: "review_unavailable", source: "system" });
     }
-    return { copy, reviewFlags };
+    const title = input.rewrite
+      ? drafted.object.title?.replace(/\s+/g, " ").trim().slice(0, PLAN_LIMITS.shortText) || input.rewrite.title
+      : undefined;
+    return { copy, reviewFlags, title };
   };
 
   // Every flag that names a fixable problem fails the attempt. What is left
@@ -469,6 +516,22 @@ export async function writeDraft(llm: Llm, critic: Llm, input: DraftInput): Prom
         name: "review_flags",
         run: (draft: { reviewFlags: ReviewFlag[] }) =>
           draft.reviewFlags.map(flagToProblem).filter((problem): problem is string => problem !== null),
+      },
+      {
+        // A rewrite that hands back the same post is the bug owners notice first.
+        name: "rewrite_changed",
+        run: (draft: { copy: string; title?: string }) => {
+          const rewrite = input.rewrite;
+          if (!rewrite) return [];
+          const titleAsked = /t[ií]tulo|title|encabezado/i.test(rewrite.instruction);
+          const unchanged = sameText(draft.copy, rewrite.copy) && (!titleAsked || sameText(draft.title ?? "", rewrite.title));
+          if (!unchanged) return [];
+          return [
+            rewrite.instruction
+              ? `You returned the current post unchanged. Rewrite it so it does what the owner asked: ${rewrite.instruction}`
+              : "You returned the current post unchanged. Write a clearly different version.",
+          ];
+        },
       },
     ],
   });

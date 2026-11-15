@@ -52,6 +52,7 @@ export async function saveDraftAction(
     decision: "save" | "approve" | "reject";
     publishTime?: string;
     reason?: string;
+    title?: string;
   },
 ): Promise<ItemActionResult> {
   const session = await requireSession();
@@ -66,6 +67,7 @@ export async function saveDraftAction(
       ...input,
       publishTime: typeof input.publishTime === "string" ? input.publishTime : undefined,
       reason: typeof input.reason === "string" ? input.reason : undefined,
+      title: typeof input.title === "string" ? input.title : undefined,
     });
     refresh();
     return result.ok ? { ok: true } : result;
@@ -75,13 +77,31 @@ export async function saveDraftAction(
   }
 }
 
-export async function rewriteAction(itemId: string, instruction: string): Promise<ItemActionResult> {
+/** Rewrite a post from what the owner has on screen, including unsaved edits. */
+export async function rewriteAction(
+  itemId: string,
+  instruction: string,
+  current?: { copy: string; assetId: string | null; title: string },
+): Promise<ItemActionResult> {
   const session = await requireSession();
   if (!isUuid(itemId) || typeof instruction !== "string") return { ok: false, error: "invalid" };
-  const result = await requestRewrite(systemDb(), session.tenantId, itemId, instruction, contentLimitsFromEnv());
-  if (result.ok) triggerRewrite(session.tenantId, itemId);
-  refresh();
-  return result;
+  if (
+    current &&
+    (typeof current.copy !== "string" ||
+      typeof current.title !== "string" ||
+      (current.assetId !== null && !isUuid(current.assetId)))
+  ) {
+    return { ok: false, error: "invalid" };
+  }
+  try {
+    const result = await requestRewrite(systemDb(), session.tenantId, itemId, instruction, contentLimitsFromEnv(), current);
+    if (result.ok) triggerRewrite(session.tenantId, itemId);
+    refresh();
+    return result;
+  } catch {
+    // An asset id that is not this brand's photo.
+    return { ok: false, error: "invalid" };
+  }
 }
 
 export type LearnActionResult =

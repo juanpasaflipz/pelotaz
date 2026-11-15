@@ -28,6 +28,8 @@ export interface PostCardProps {
   topic: string;
   offerName: string | null;
   occasion: string | null;
+  /** The last rewrite failed, so the text shown is the previous version. */
+  rewriteFailed: boolean;
   draft: {
     version: number;
     copy: string;
@@ -71,10 +73,16 @@ export function PostCard(props: PostCardProps) {
   const [base, setBase] = useState(draft?.version ?? 0);
   const [copy, setCopy] = useState(draft?.copy ?? "");
   const [assetId, setAssetId] = useState<string | null>(draft?.assetId ?? null);
+  const [title, setTitle] = useState(props.topic);
+  const [baseTitle, setBaseTitle] = useState(props.topic);
   if ((draft?.version ?? 0) !== base) {
     setBase(draft?.version ?? 0);
     setCopy(draft?.copy ?? "");
     setAssetId(draft?.assetId ?? null);
+  }
+  if (props.topic !== baseTitle) {
+    setBaseTitle(props.topic);
+    setTitle(props.topic);
   }
 
   const [pending, startTransition] = useTransition();
@@ -95,10 +103,11 @@ export function PostCard(props: PostCardProps) {
 
   const [time, setTime] = useState(props.publishing.time);
   const decide = (decision: "save" | "approve" | "reject", after?: () => void) =>
-    run(() => saveDraftAction(itemId, { copy, assetId, decision, publishTime: time, reason }), after);
+    run(() => saveDraftAction(itemId, { copy, assetId, decision, publishTime: time, reason, title }), after);
 
   const image = images.find((candidate) => candidate.id === assetId) ?? null;
-  const dirty = draft !== null && (copy !== draft.copy || assetId !== draft.assetId);
+  const dirty =
+    draft !== null && (copy !== draft.copy || assetId !== draft.assetId || title.trim() !== props.topic);
   const working = status === "drafting";
   const scheduled = status === "scheduled";
   const published = status === "published";
@@ -151,9 +160,26 @@ export function PostCard(props: PostCardProps) {
 
       {!working && !draft && <p className="mt-4 text-chapa">{t.failedBody}</p>}
 
+      {!working && draft && props.rewriteFailed && (
+        <p className="mt-4 text-sm font-medium text-chapa" role="alert">
+          {t.rewriteFailed}
+        </p>
+      )}
+
       {!working && draft && (
         <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
           <div>
+            <label htmlFor={`${id}-name`} className="text-sm font-semibold">
+              {t.title}
+            </label>
+            <input
+              id={`${id}-name`}
+              className="field mt-1 mb-3"
+              value={title}
+              maxLength={160}
+              onChange={(event) => setTitle(event.target.value)}
+              disabled={pending || published || sending}
+            />
             <label htmlFor={`${id}-copy`} className="text-sm font-semibold">
               {t.copy}
             </label>
@@ -278,7 +304,7 @@ export function PostCard(props: PostCardProps) {
               disabled={pending}
               onClick={() =>
                 run(
-                  () => rewriteAction(itemId, instruction),
+                  () => rewriteAction(itemId, instruction, draft ? { copy, assetId, title } : undefined),
                   () => {
                     setRewriting(false);
                     setInstruction("");
