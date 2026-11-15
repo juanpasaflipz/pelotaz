@@ -58,6 +58,7 @@ npm run db:seed:demo            # adds a finished demo brand and a planned week,
 | `npm run build` | Production build |
 | `npm run db:generate` | New migration from changes to `src/db/schema.ts` |
 | `npm run db:migrate` | Apply migrations |
+| `npm run db:migrate:deploy` | Apply migrations only when `VERCEL_ENV=production`. Vercel runs it before every build |
 
 To run the tests against a real server (worth doing once against a Neon branch, since that is the role setup you deploy to):
 
@@ -89,7 +90,7 @@ src/
     limits.ts        per-tenant ceilings on brands and onboarding runs
   app/               pages, server actions, two route handlers
   i18n/es.ts         every string the product shows
-drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review, 0004 publishing, 0005 post results)
+drizzle/             SQL migrations (0000 role, 0001 schema, 0002 grants + ledger trigger, 0003 plan and draft review, 0004 publishing, 0005 post results, 0006 rejection reasons)
 test/                suites plus an invented restaurant site as a fixture
 ```
 
