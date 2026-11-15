@@ -82,6 +82,7 @@ export const es = {
     lead: "No pudimos confirmar estos datos en tu sitio. Corrígelos o déjalos si son correctos, y guarda.",
     price_not_found_in_pages: "No encontramos este precio en tu sitio.",
     banned_word: "Tu perfil dice que tu marca no usa esta palabra.",
+    story_too_long: "La historia es demasiado larga para leerse en dos segundos.",
     review_unavailable: "La revisión automática no se pudo hacer. Lee el perfil con cuidado.",
   },
   editor: {
@@ -205,6 +206,9 @@ export const es = {
     approved: "Aprobada",
     save: "Guardar cambios",
     reject: "Rechazar",
+    rejectLabel: "¿Por qué no va? (opcional)",
+    rejectPlaceholder: "No promocionamos eso entre semana, suena muy formal…",
+    rejectHint: "Pelotaz lo toma en cuenta al planear las próximas semanas.",
     reopen: "Volver a revisar",
     copyText: "Copiar texto",
     copied: "Copiado",

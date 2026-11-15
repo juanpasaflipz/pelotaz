@@ -138,13 +138,14 @@ export const critiqueSchema = z.object({
  * - `critic`: the second model pass could not find support for a claim.
  * - `price_check`: code could not find an offer's price in the crawled text.
  * - `banned_words`: a post uses a word the brand profile says it never uses.
+ * - `format_check`: a post breaks a rule of its format, such as a story that is too long.
  * - `system`: the automatic review itself did not run.
  */
 export interface ReviewFlag {
   field: string;
   claim: string;
   reason: string;
-  source: "critic" | "price_check" | "banned_words" | "system";
+  source: "critic" | "price_check" | "banned_words" | "format_check" | "system";
 }
 
 const clampText = (value: string, max: number) =>

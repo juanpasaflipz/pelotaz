@@ -62,10 +62,16 @@ const DRAFT = {
   hashtags: ["tacos", "#Guadalajara", "comida mexicana", "x", "tacos"],
 };
 
+/** The first post gets DRAFT; the others a caption of their own, as a real week would. */
+function draftFor(prompt: string) {
+  const topic = /Topic: (.+?)\.\n/.exec(prompt)?.[1] ?? "";
+  return topic === "Martes de 2x1" ? DRAFT : { caption: `${topic}, hecho aquí mismo.\nPide hoy.`, hashtags: [] };
+}
+
 function contentLlm(overrides: Record<string, (request: { prompt: string }) => unknown> = {}) {
   return createFakeLlm({
     "content.plan": () => PLAN,
-    "content.draft": () => DRAFT,
+    "content.draft": (request) => draftFor(request.prompt),
     "content.rewrite": () => ({ ...DRAFT, caption: "Versión más corta. Pide hoy." }),
     "content.critique": () => ({ flags: [] }),
     ...overrides,
@@ -194,7 +200,7 @@ describe("plan and copy rules", () => {
 describe("weekly plan", () => {
   it("plans the week and drafts every post for approval", async () => {
     const { brandId, planId, outcome, llm } = await plannedBrand();
-    expect(outcome).toEqual({ state: "ready", posts: 3, drafted: 3 });
+    expect(outcome).toEqual({ state: "ready", posts: 3, drafted: 3, corrected: 0 });
 
     const week = await latestWeek(db, tenantId, brandId);
     expect(week?.plan.id).toBe(planId);
@@ -246,17 +252,17 @@ describe("weekly plan", () => {
   it("keeps the plan when one draft fails, and says the check did not run when the critic fails", async () => {
     let drafts = 0;
     const llm = contentLlm({
-      "content.draft": () => {
+      "content.draft": (request) => {
         drafts += 1;
         if (drafts === 2) throw new Error("model down");
-        return DRAFT;
+        return draftFor(request.prompt);
       },
       "content.critique": () => {
         throw new Error("critic down");
       },
     });
     const { brandId, outcome } = await plannedBrand(llm);
-    expect(outcome).toEqual({ state: "ready", posts: 3, drafted: 2 });
+    expect(outcome).toEqual({ state: "ready", posts: 3, drafted: 2, corrected: 0 });
     const week = await latestWeek(db, tenantId, brandId);
     expect(week!.items.map((i) => i.item.status).sort()).toEqual(["failed", "needs_approval", "needs_approval"]);
     const drafted = week!.items.find((i) => i.draft)!;
@@ -439,5 +445,102 @@ describe("approval", () => {
       ok: false,
       error: "not_found",
     });
+  });
+});
+
+describe("loops and the week's graph", () => {
+  it("rewrites a draft that fails a check, telling the model what failed", async () => {
+    let drafts = 0;
+    const llm = contentLlm({
+      "content.draft": (request) => {
+        if (!request.prompt.includes("Topic: Martes de 2x1.")) return draftFor(request.prompt);
+        drafts += 1;
+        return drafts === 1 ? { ...DRAFT, caption: "Taco al pastor a solo $15 esta semana." } : DRAFT;
+      },
+    });
+    const { brandId } = await plannedBrand(llm);
+    const week = await latestWeek(db, tenantId, brandId);
+    const first = week!.items.find((i) => i.brief.topic === "Martes de 2x1")!;
+    expect(first.draft!.copy).toContain("$24");
+    expect(first.draft!.reviewFlags).toEqual([]);
+    expect(first.draft!.llmUsage.map((u) => u.purpose)).toEqual([
+      "content.draft",
+      "content.critique",
+      "content.draft",
+      "content.critique",
+    ]);
+    const retry = llm.calls.filter((call) => call.purpose === "content.draft" && call.prompt.includes("Topic: Martes de 2x1."))[1];
+    expect(retry.prompt).toContain("A check of your previous post found these problems");
+    expect(retry.prompt).toMatch(/The price \$?15\b/);
+  });
+
+  it("sends a post that repeats another post's line back to be written again", async () => {
+    const llm = contentLlm({ "content.draft": () => DRAFT });
+    const { brandId, outcome } = await plannedBrand(llm);
+    expect(outcome).toMatchObject({ state: "ready", posts: 3, drafted: 3, corrected: 2 });
+    const corrections = llm.calls.filter(
+      (call) => call.purpose === "content.draft" && call.prompt.includes("Another post this week already says"),
+    );
+    // Two later posts, each with its own problems; the first post keeps its lines.
+    expect(corrections.length).toBeGreaterThanOrEqual(2);
+    const week = await latestWeek(db, tenantId, brandId);
+    expect(week!.items.map((i) => i.draft!.version)).toEqual([1, 2, 2]);
+    expect(week!.items.every((i) => i.item.status === "needs_approval")).toBe(true);
+  });
+
+  it("plans again when the plan fails its gate, and keeps the better plan", async () => {
+    let plans = 0;
+    const allSelling: WeekPlan = {
+      rationale: "Solo ventas.",
+      posts: [post(), post({ day: "wed", pillar: "promotion" }), post({ day: "fri", pillar: "offer", topic: "Arrachera" })],
+    };
+    const llm = contentLlm({
+      "content.plan": () => {
+        plans += 1;
+        return plans === 1 ? allSelling : PLAN;
+      },
+    });
+    const { brandId } = await plannedBrand(llm);
+    const calls = llm.calls.filter((call) => call.purpose === "content.plan");
+    expect(calls).toHaveLength(2);
+    expect(calls[1].prompt).toContain("Every post sells");
+    const week = await latestWeek(db, tenantId, brandId);
+    expect(week!.items.map((i) => i.brief.pillar)).toEqual(["promotion", "product", "community"]);
+  });
+
+  it("feeds the owner's rejection reason into the next plan, and drops it when they reopen", async () => {
+    const { brandId, llm } = await plannedBrand();
+    const week = await latestWeek(db, tenantId, brandId);
+    const community = week!.items.find((i) => i.brief.pillar === "community")!;
+    const saved = await saveItem(db, tenantId, community.item.id, {
+      copy: community.draft!.copy,
+      assetId: null,
+      decision: "reject",
+      reason: "  No hablamos de   la colonia, somos de toda la ciudad  ",
+    });
+    expect(saved.ok).toBe(true);
+
+    const again = await requestPlan(db, tenantId, brandId, LIMITS);
+    if (again.state !== "started") throw new Error(again.state);
+    await runPlan({ db, llm }, tenantId, again.planId);
+    const planCalls = llm.calls.filter((call) => call.purpose === "content.plan");
+    const latestPrompt = planCalls.at(-1)!.prompt;
+    expect(latestPrompt).toContain('"Chapultepec"');
+    expect(latestPrompt).toContain('The owner said: "No hablamos de la colonia, somos de toda la ciudad"');
+    // The same topic comes back from the fake planner, so the gate asked for another plan.
+    expect(planCalls.at(-1)!.prompt).toContain('The owner rejected the topic "Chapultepec" recently');
+
+    // The rejected post left the week but is kept, with its reason, as history.
+    const [kept] = await withTenant(db, tenantId, (tx) =>
+      tx.select().from(contentItems).where(eq(contentItems.id, community.item.id)),
+    );
+    expect(kept.planId).toBeNull();
+    expect(kept.decisionNote).toBe("No hablamos de la colonia, somos de toda la ciudad");
+
+    await saveItem(db, tenantId, community.item.id, { copy: community.draft!.copy, assetId: null, decision: "save" });
+    const [reopened] = await withTenant(db, tenantId, (tx) =>
+      tx.select().from(contentItems).where(eq(contentItems.id, community.item.id)),
+    );
+    expect(reopened.decisionNote).toBeNull();
   });
 });

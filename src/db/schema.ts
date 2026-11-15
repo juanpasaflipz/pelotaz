@@ -300,6 +300,11 @@ export const contentItems = pgTable(
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
     brief: jsonb("brief").$type<Record<string, unknown>>().notNull().default({}),
     status: contentStatus("status").notNull().default("planned"),
+    /**
+     * Why the owner rejected the post, in their words, when they said. The
+     * planner reads recent ones, so a rejection shapes the next weeks too.
+     */
+    decisionNote: text("decision_note"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
