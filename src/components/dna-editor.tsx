@@ -319,7 +319,7 @@ export function DnaEditor({
             {pending ? t.saving : t.save}
           </button>
           <div role="status" aria-live="polite" className="min-w-0 text-sm">
-            {result?.ok && <p className="font-semibold text-cancha-profunda">{t.saved(result.version)}</p>}
+            {result?.ok && <p className="font-semibold text-ok">{t.saved(result.version)}</p>}
             {result && !result.ok && result.error === "not_found" && (
               <p className="font-semibold text-chapa">{t.notFound}</p>
             )}

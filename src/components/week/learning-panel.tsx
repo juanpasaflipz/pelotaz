@@ -71,7 +71,7 @@ export function LearningPanel({ brandId, newEdits, proposal }: LearningPanelProp
     });
 
   return (
-    <section className="mt-8 rounded-md border-2 border-pelota bg-raya p-5" aria-labelledby="learning-title">
+    <section className="mt-8 rounded-md border-2 border-bola bg-raya p-5" aria-labelledby="learning-title">
       <h2 id="learning-title" className="display text-3xl">
         {proposal ? t.proposalTitle : t.title}
       </h2>
@@ -100,7 +100,7 @@ export function LearningPanel({ brandId, newEdits, proposal }: LearningPanelProp
                 <label className="flex cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
-                    className="mt-1 size-5 accent-cancha"
+                    className="mt-1 size-5 accent-marca"
                     checked={kept.has(index)}
                     onChange={() => toggle(index)}
                     disabled={pending}

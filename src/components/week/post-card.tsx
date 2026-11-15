@@ -121,7 +121,7 @@ export function PostCard(props: PostCardProps) {
 
   return (
     <article
-      className={`rounded-md border-2 bg-raya p-4 sm:p-5 ${approved || published ? "border-cancha" : "border-borde"} ${rejected ? "opacity-70" : ""}`}
+      className={`rounded-md border-2 bg-raya p-4 sm:p-5 ${approved || published ? "border-ok" : "border-borde"} ${rejected ? "opacity-70" : ""}`}
       aria-labelledby={`${id}-title`}
     >
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -129,7 +129,7 @@ export function PostCard(props: PostCardProps) {
           {props.dateLabel} · {t.channels[props.channel] ?? props.channel} · {t.formats[props.format] ?? props.format}
         </p>
         <p
-          className={`text-sm font-semibold ${approved || published ? "text-cancha" : rejected ? "text-chapa" : "text-tinta-suave"}`}
+          className={`text-sm font-semibold ${approved || published ? "text-ok" : rejected ? "text-chapa" : "text-tinta-suave"}`}
         >
           {t.status[status] ?? status}
         </p>
@@ -205,7 +205,7 @@ export function PostCard(props: PostCardProps) {
             <fieldset className="sm:col-span-2">
               <legend className="text-sm font-semibold">{t.changePhoto}</legend>
               <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
-                <label className="grid aspect-square cursor-pointer place-items-center rounded border border-dashed border-borde text-center text-xs has-[:checked]:outline has-[:checked]:outline-3 has-[:checked]:outline-cancha">
+                <label className="grid aspect-square cursor-pointer place-items-center rounded border border-dashed border-borde text-center text-xs has-[:checked]:outline has-[:checked]:outline-3 has-[:checked]:outline-marca">
                   <input
                     type="radio"
                     name={`${id}-photo`}
@@ -218,7 +218,7 @@ export function PostCard(props: PostCardProps) {
                 {images.map((candidate) => (
                   <label
                     key={candidate.id}
-                    className="cursor-pointer rounded has-[:checked]:outline has-[:checked]:outline-3 has-[:checked]:outline-cancha"
+                    className="cursor-pointer rounded has-[:checked]:outline has-[:checked]:outline-3 has-[:checked]:outline-marca"
                   >
                     <input
                       type="radio"
@@ -358,7 +358,7 @@ export function PostCard(props: PostCardProps) {
       {!working && !rewriting && !rejecting && !published && !sending && (
         <>
           {scheduled && props.publishing.scheduledLabel && (
-            <p className="mt-4 font-semibold text-cancha">{p.scheduled(props.publishing.scheduledLabel)}</p>
+            <p className="mt-4 font-semibold text-ok">{p.scheduled(props.publishing.scheduledLabel)}</p>
           )}
           {status === "approved" && !canSchedule && (
             <p className="mt-4 text-sm text-tinta-suave">{connected && needsPhoto ? p.needsPhoto : p.manual}</p>

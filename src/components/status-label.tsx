@@ -9,7 +9,7 @@ export function StatusLabel({ status }: { status: Status }) {
     <span className="inline-flex items-center gap-2 text-sm font-semibold">
       {working && <span className="ball" aria-hidden />}
       {status === "failed" && <span className="h-1 w-4 bg-chapa" aria-hidden />}
-      {status === "ready" && <span className="h-1 w-4 bg-cancha" aria-hidden />}
+      {status === "ready" && <span className="h-1 w-4 bg-ok" aria-hidden />}
       <span className={status === "failed" ? "text-chapa" : undefined}>{es.status[status]}</span>
     </span>
   );

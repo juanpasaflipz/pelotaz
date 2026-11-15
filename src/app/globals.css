@@ -1,25 +1,29 @@
 @import "tailwindcss";
 
 /*
- * Pelotaz takes its look from the frontón, the court where a pelotazo lands:
- * a deep green wall, white painted lines, and one red stripe (the chapa) that
- * marks a fault. Green is the brand, white lines are structure, and red is
- * reserved for things the person has to look at. Yellow is the ball: it only
- * appears where something is in motion or in focus.
+ * Pelotaz looks like its Facebook and Instagram profiles: a glossy red ball
+ * beside a rounded grey wordmark, on white. Red is the brand: the ball, the
+ * hero band and the main buttons. Faults use a darker red on a pink ground
+ * (chapa), and good news (approved, published, saved) uses green (ok), so
+ * neither is mistaken for the brand. The ball also marks work in progress.
  */
 @theme {
-  --color-cancha: #0e5a43;
-  --color-cancha-profunda: #0a3f30;
-  --color-cal: #f2f4ef;
+  /* Brand red. `bola` is the logo's red; `marca` is a shade darker so white
+     text on it stays readable (5.1:1). */
+  --color-bola: #f40a0a;
+  --color-marca: #dc0b0b;
+  --color-marca-profunda: #b00909;
+  --color-cal: #f6f6f4;
   --color-raya: #ffffff;
-  --color-tinta: #13211b;
-  --color-tinta-suave: #4a5a52;
-  --color-borde: #d3dad2;
-  --color-chapa: #c8321f;
-  --color-chapa-fondo: #fbeeeb;
-  --color-pelota: #efc029;
+  --color-tinta: #1a1a1a;
+  /* The wordmark's grey. */
+  --color-tinta-suave: #505050;
+  --color-borde: #dddddb;
+  --color-chapa: #9e1309;
+  --color-chapa-fondo: #fdecea;
+  --color-ok: #157347;
 
-  --font-display: "Big Shoulders Variable", "Arial Narrow", "Helvetica Neue", sans-serif;
+  --font-display: "Nunito Variable", "Arial Rounded MT Bold", "Helvetica Neue", sans-serif;
   --font-sans: "Instrument Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -35,24 +39,22 @@ body {
   line-height: 1.5;
 }
 
-/* Condensed display type, set tight. Used for names and headings only. */
+/* Rounded display type, like the wordmark. Used for names and headings only. */
 .display {
   font-family: var(--font-display);
   font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -0.005em;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
 }
 
-/* The wall: green field, a white court line, and the red chapa under it. */
+/* The hero band: brand red with white type, like the profile's ball. */
 .wall {
-  background: var(--color-cancha);
+  background: var(--color-marca);
   color: var(--color-raya);
-  border-bottom: 4px solid var(--color-chapa);
-  box-shadow: inset 0 -6px 0 var(--color-raya);
 }
 
 :where(a, button, input, select, textarea, summary):focus-visible {
-  outline: 3px solid var(--color-pelota);
+  outline: 3px solid var(--color-tinta);
   outline-offset: 2px;
 }
 
@@ -89,15 +91,15 @@ textarea.field {
   opacity: 0.7;
 }
 .button-primary {
-  background: var(--color-cancha);
+  background: var(--color-marca);
   color: var(--color-raya);
 }
 .button-primary:hover:not([disabled]) {
-  background: var(--color-cancha-profunda);
+  background: var(--color-marca-profunda);
 }
 .button-on-wall {
   background: var(--color-raya);
-  color: var(--color-cancha-profunda);
+  color: var(--color-marca-profunda);
 }
 .button-on-wall:hover:not([disabled]) {
   background: var(--color-cal);
@@ -111,13 +113,17 @@ textarea.field {
   border-color: var(--color-tinta-suave);
 }
 
-/* The ball: shown while a site is being read. It answers a state, not a page load. */
+/* The ball from the logo: shown while work is running. It answers a state, not a page load. */
 .ball {
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 50%;
-  background: var(--color-pelota);
+  background: radial-gradient(circle at 34% 30%, #ffffff 0 14%, var(--color-bola) 16% 100%);
   flex: none;
+}
+/* On the red band, a white ball. */
+.wall .ball {
+  background: var(--color-raya);
 }
 @media (prefers-reduced-motion: no-preference) {
   .ball-bouncing {

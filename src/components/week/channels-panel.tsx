@@ -29,7 +29,7 @@ export function ChannelsPanel({ brandId, connections, result }: ChannelsPanelPro
         {t.title}
       </h2>
       {result && t.results[result] && (
-        <p className={`mt-2 text-sm font-medium ${result === "connected" ? "text-cancha" : "text-chapa"}`} role="status">
+        <p className={`mt-2 text-sm font-medium ${result === "connected" ? "text-ok" : "text-chapa"}`} role="status">
           {t.results[result]}
         </p>
       )}
