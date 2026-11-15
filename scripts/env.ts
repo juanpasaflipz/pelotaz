@@ -1,3 +1,5 @@
+import { withVerifiedSsl } from "../src/db/url";
+
 /** Load .env.local for scripts run outside Next.js. Missing file is fine (CI sets real env vars). */
 export function loadEnv() {
   for (const file of [".env.local", ".env"]) {
@@ -26,5 +28,5 @@ export function requireDatabaseUrl(): string {
     );
     process.exit(1);
   }
-  return url;
+  return withVerifiedSsl(url);
 }

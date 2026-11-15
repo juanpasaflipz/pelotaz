@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
 import type { Db } from "./tenant";
+import { withVerifiedSsl } from "./url";
 
 let cached: Db | undefined;
 
@@ -20,7 +21,7 @@ export function systemDb(): Db {
   if (!/^postgres(ql)?:\/\//.test(url)) {
     throw new Error('DATABASE_URL must be a connection string starting with "postgresql://".');
   }
-  const pool = new Pool({ connectionString: url, max: 5 });
+  const pool = new Pool({ connectionString: withVerifiedSsl(url), max: 5 });
   cached = drizzle(pool, { schema });
   return cached;
 }
