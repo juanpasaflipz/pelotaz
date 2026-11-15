@@ -191,6 +191,49 @@ describe("Graph client", () => {
   });
 });
 
+describe("reading Facebook results", () => {
+  it("keeps views and reach when Meta refuses reactions and comments", async () => {
+    const fetchImpl: FetchLike = async (url) => {
+      const { pathname, searchParams } = new URL(url);
+      if (pathname.endsWith("/post-1")) {
+        return {
+          ok: false,
+          status: 400,
+          json: async () => ({ error: { message: "(#10) This endpoint requires the 'pages_read_user_content' permission", code: 10 } }),
+        };
+      }
+      const value = searchParams.get("metric") === "post_media_view" ? 90 : 40;
+      return { ok: true, status: 200, json: async () => ({ data: [{ values: [{ value }] }] }) };
+    };
+    const graph = createGraphClient({ appId: "a", appSecret: "s" }, fetchImpl);
+    expect(await graph.facebookResults("post-1", "tok")).toEqual({
+      views: 90,
+      reach: 40,
+      likes: null,
+      comments: null,
+      shares: null,
+      saves: null,
+      interactions: null,
+    });
+  });
+
+  it("still reports an expired token", async () => {
+    const fetchImpl: FetchLike = async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { message: "Session expired", code: 190 } }),
+    });
+    const graph = createGraphClient({ appId: "a", appSecret: "s" }, fetchImpl);
+    const error = await graph.facebookResults("post-1", "tok").catch((e) => e);
+    expect((error as MetaApiError).needsReconnect).toBe(true);
+  });
+
+  it("asks for pages_read_user_content when no login configuration is set", () => {
+    const scope = new URL(loginUrl({ appId: "a", appSecret: "s" }, "https://x/cb", "st")).searchParams.get("scope");
+    expect(scope?.split(",")).toContain("pages_read_user_content");
+  });
+});
+
 describe("finding the Pages to publish to", () => {
   it("falls back to the Pages granted in the login dialog when me/accounts is empty", async () => {
     const urls: string[] = [];
