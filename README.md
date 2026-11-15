@@ -17,6 +17,11 @@ This repository covers **phase 1** (the multi-tenant foundation, site crawling, 
 9. **Publicación automática**: with the brand's Facebook Page and Instagram account connected, approving a post schedules it for its day at the time the owner picks (12:30 by default). A scheduler publishes due posts. Failures go back to the owner as "approved" with the reason; a post interrupted mid-send is never re-sent automatically.
 10. **Resultados**: once a day, for 30 days after publishing, Pelotaz reads each post's views, reach, likes, comments, shares and saves from Meta and shows them on the post. The planner sees the latest results of recent posts and leans toward what earned more interactions for its reach.
 11. **Aprende de tus cambios**: Pelotaz compares the drafts with the owner's edits and proposes profile changes: facts they corrected (a price, a recipe, the rating) and style they changed the same way in two or more posts. The owner ticks which to apply; applied changes become a new profile version marked "ajustada con tus comentarios". The model can only propose from a fixed set of operations, which code applies, so it cannot rewrite anything it does not show.
+12. **Loops y grafo**: the owner approves only the last step. Each unit of work fixes itself before the owner sees it, with checks a program can fail (`src/lib/graph/loop.ts`):
+    - *Plan*: code gates the week (no pillar more than twice, at least one post that does not sell, no promotion the profile lacks, no topic the owner rejected). A failing plan is made once more with the problems listed.
+    - *Each post*: the price, banned-word, story-length and critic checks no longer only warn. A draft that fails is written once more with what failed; only what is still wrong reaches the owner.
+    - *The week*: posts are written in parallel, each in its own context, so a merge gate in code looks for lines two posts share. Later posts that repeat one are sent back once with the line to avoid (the correction edge).
+    - *Learning*: when the owner rejects a post they can say why. Recent rejections and reasons go into the next plan's prompt and its gate (the learning edge), and rejected posts survive a re-plan as history.
 
 ## Setup
 

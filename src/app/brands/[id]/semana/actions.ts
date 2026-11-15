@@ -46,7 +46,13 @@ export type ItemActionResult = { ok: true } | { ok: false; error: ItemError | "i
 
 export async function saveDraftAction(
   itemId: string,
-  input: { copy: string; assetId: string | null; decision: "save" | "approve" | "reject"; publishTime?: string },
+  input: {
+    copy: string;
+    assetId: string | null;
+    decision: "save" | "approve" | "reject";
+    publishTime?: string;
+    reason?: string;
+  },
 ): Promise<ItemActionResult> {
   const session = await requireSession();
   if (!isUuid(itemId) || (input.assetId !== null && !isUuid(input.assetId))) {
@@ -59,6 +65,7 @@ export async function saveDraftAction(
     const result = await saveItem(systemDb(), session.tenantId, itemId, {
       ...input,
       publishTime: typeof input.publishTime === "string" ? input.publishTime : undefined,
+      reason: typeof input.reason === "string" ? input.reason : undefined,
     });
     refresh();
     return result.ok ? { ok: true } : result;

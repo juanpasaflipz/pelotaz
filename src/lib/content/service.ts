@@ -5,7 +5,7 @@ import type { BrandDnaProfile, ReviewFlag } from "@/lib/brand-dna/schema";
 import type { Llm } from "@/lib/llm/types";
 import { localDate, localToUtc } from "@/lib/markets";
 import { activeConnection } from "@/lib/publishing/service";
-import { checkCopy, planWeek, writeDraft, type PastPost } from "./build";
+import { checkCopy, findRepeatedLines, planWeek, writeDraft, type PastPost, type RejectedPost } from "./build";
 import { nextWeekStart, PLAN_LIMITS, type CandidateImage, type PostBrief } from "./schema";
 
 export interface ContentDeps {
@@ -118,6 +118,11 @@ export async function requestPlan(
     if (spent) return { state: spent };
 
     if (existing) {
+      // Rejected posts leave the week but stay as history: the planner learns from them.
+      await tx
+        .update(contentItems)
+        .set({ planId: null })
+        .where(and(eq(contentItems.planId, existing.id), eq(contentItems.status, "rejected")));
       await tx.delete(contentItems).where(eq(contentItems.planId, existing.id));
       await tx
         .update(plans)
@@ -232,6 +237,36 @@ async function recentResults(tx: TenantTx, brandId: string, limit = 20): Promise
     }));
 }
 
+/** How far back, and how many, rejections the planner reads. */
+const REJECTIONS_WEEKS = 8;
+const REJECTIONS_MAX = 10;
+
+/** Posts the owner rejected recently, newest first, with their reason when they gave one. */
+async function recentRejections(tx: TenantTx, brandId: string): Promise<RejectedPost[]> {
+  const rows = await tx
+    .select({ brief: contentItems.brief, note: contentItems.decisionNote })
+    .from(contentItems)
+    .where(
+      and(
+        eq(contentItems.brandId, brandId),
+        eq(contentItems.status, "rejected"),
+        sql`${contentItems.updatedAt} > now() - make_interval(weeks => ${REJECTIONS_WEEKS})`,
+      ),
+    )
+    .orderBy(desc(contentItems.updatedAt))
+    .limit(REJECTIONS_MAX);
+  return rows.map((row) => {
+    const brief = row.brief as unknown as PostBrief;
+    return {
+      date: brief.date,
+      pillar: brief.pillar,
+      topic: brief.topic,
+      offerName: brief.offerName,
+      reason: row.note,
+    };
+  });
+}
+
 async function nextDraftVersion(tx: TenantTx, itemId: string): Promise<number> {
   const [row] = await tx
     .select({ latest: sql<number | null>`max(${drafts.version})` })
@@ -249,6 +284,8 @@ async function draftOne(
   rewrite?: { copy: string; instruction: string },
   /** The photo the post has now, when there is a previous version. */
   currentAssetIds?: string[],
+  /** Problems a check outside the post found in its previous version. */
+  feedback?: string[],
 ): Promise<boolean> {
   const { db, llm, critic = llm } = deps;
   // A new version keeps the photo the owner has now; a first draft uses the plan's.
@@ -263,6 +300,7 @@ async function draftOne(
       image,
       siteText: context.siteText,
       rewrite,
+      feedback,
     });
     await withTenant(db, tenantId, async (tx) => {
       await tx.insert(drafts).values({
@@ -306,7 +344,7 @@ async function inBatches<T>(items: T[], size: number, work: (item: T) => Promise
 }
 
 export type PlanOutcome =
-  | { state: "ready"; posts: number; drafted: number }
+  | { state: "ready"; posts: number; drafted: number; corrected: number }
   | { state: "failed"; reason: "no_profile" | "llm_error" | "internal_error" }
   | { state: "skipped" };
 
@@ -345,8 +383,17 @@ export async function runPlan(deps: ContentDeps, tenantId: string, planId: strin
 
   let built;
   try {
-    const past = await withTenant(db, tenantId, (tx) => recentResults(tx, plan.brandId));
-    built = await planWeek(llm, { profile: context.profile, weekStart: plan.weekStart, images: context.images, past });
+    const { past, rejected } = await withTenant(db, tenantId, async (tx) => ({
+      past: await recentResults(tx, plan.brandId),
+      rejected: await recentRejections(tx, plan.brandId),
+    }));
+    built = await planWeek(llm, {
+      profile: context.profile,
+      weekStart: plan.weekStart,
+      images: context.images,
+      past,
+      rejected,
+    });
   } catch (error) {
     console.error("plan failed", { planId, error: error instanceof Error ? error.message : error });
     return fail("llm_error");
@@ -397,10 +444,55 @@ export async function runPlan(deps: ContentDeps, tenantId: string, planId: strin
     if (ok) drafted += 1;
   });
 
+  const corrected = await weekGate(deps, tenantId, items, context);
+
   await withTenant(db, tenantId, (tx) =>
     tx.update(plans).set({ status: "ready" }).where(eq(plans.id, planId)),
   );
-  return { state: "ready", posts: items.length, drafted };
+  return { state: "ready", posts: items.length, drafted, corrected };
+}
+
+/**
+ * The week's merge gate. Each post was written in its own context, so two
+ * of them can land on the same line; code finds it, and the correction edge
+ * sends each later post back to be written once more with the reason. One
+ * pass only: what is still repeated after that is the owner's call.
+ */
+async function weekGate(
+  deps: ContentDeps,
+  tenantId: string,
+  items: Array<typeof contentItems.$inferSelect>,
+  context: BrandContext,
+): Promise<number> {
+  const latest = await withTenant(deps.db, tenantId, (tx) =>
+    items.length === 0
+      ? Promise.resolve([])
+      : tx
+          .selectDistinctOn([drafts.contentItemId])
+          .from(drafts)
+          .where(inArray(drafts.contentItemId, items.map((item) => item.id)))
+          .orderBy(drafts.contentItemId, desc(drafts.version)),
+  );
+  const byItem = new Map(latest.map((draft) => [draft.contentItemId, draft]));
+  // In the order the week reads, so the earlier post keeps its line.
+  const ordered = items.filter((item) => byItem.has(item.id));
+  const problems = findRepeatedLines(ordered.map((item) => ({ id: item.id, copy: byItem.get(item.id)!.copy })));
+
+  let corrected = 0;
+  await inBatches([...problems], DRAFT_CONCURRENCY, async ([itemId, found]) => {
+    const item = items.find((candidate) => candidate.id === itemId)!;
+    const ok = await draftOne(
+      deps,
+      tenantId,
+      { ...item, brief: item.brief as unknown as PostBrief },
+      context,
+      undefined,
+      byItem.get(itemId)!.assetIds,
+      found,
+    );
+    if (ok) corrected += 1;
+  });
+  return corrected;
 }
 
 /** Lunch time: when a restaurant's followers are deciding what to eat. Owners can change it per post. */
@@ -544,6 +636,8 @@ export async function saveItem(
     decision: "save" | "approve" | "reject";
     /** HH:MM, brand-local, on the post's suggested date. Used when the channel is connected. */
     publishTime?: string;
+    /** With `reject`: why, in the owner's words. The planner reads it next week. */
+    reason?: string;
   },
 ): Promise<{ ok: true; scheduled: boolean } | { ok: false; error: ItemError }> {
   const copy = input.copy.replace(/\r\n/g, "\n").trim().slice(0, PLAN_LIMITS.caption + 300);
@@ -560,9 +654,15 @@ export async function saveItem(
       await saveOwnerVersion(tx, tenantId, item, copy, input.assetId);
     }
     if (input.decision !== "approve") {
+      const reason = input.reason?.replace(/\s+/g, " ").trim().slice(0, 300) || null;
       await tx
         .update(contentItems)
-        .set({ status: input.decision === "reject" ? "rejected" : "needs_approval", scheduledAt: null })
+        .set({
+          status: input.decision === "reject" ? "rejected" : "needs_approval",
+          scheduledAt: null,
+          // Reopening a post withdraws the rejection, and its reason with it.
+          decisionNote: input.decision === "reject" ? reason : null,
+        })
         .where(eq(contentItems.id, itemId));
       return { ok: true, scheduled: false };
     }
@@ -576,11 +676,14 @@ export async function saveItem(
       const [brand] = await tx.select({ country: brands.country }).from(brands).where(eq(brands.id, item.brandId));
       await tx
         .update(contentItems)
-        .set({ status: "scheduled", scheduledAt: localToUtc(brief.date, time, brand.country) })
+        .set({ status: "scheduled", scheduledAt: localToUtc(brief.date, time, brand.country), decisionNote: null })
         .where(eq(contentItems.id, itemId));
       return { ok: true, scheduled: true };
     }
-    await tx.update(contentItems).set({ status: "approved", scheduledAt: null }).where(eq(contentItems.id, itemId));
+    await tx
+      .update(contentItems)
+      .set({ status: "approved", scheduledAt: null, decisionNote: null })
+      .where(eq(contentItems.id, itemId));
     return { ok: true, scheduled: false };
   });
 }

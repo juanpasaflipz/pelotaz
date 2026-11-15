@@ -82,6 +82,8 @@ export function PostCard(props: PostCardProps) {
   const [picking, setPicking] = useState(false);
   const [rewriting, setRewriting] = useState(false);
   const [instruction, setInstruction] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
   const [copied, setCopied] = useState(false);
 
   const run = (action: () => Promise<ItemActionResult>, after?: () => void) =>
@@ -92,8 +94,8 @@ export function PostCard(props: PostCardProps) {
     });
 
   const [time, setTime] = useState(props.publishing.time);
-  const decide = (decision: "save" | "approve" | "reject") =>
-    run(() => saveDraftAction(itemId, { copy, assetId, decision, publishTime: time }));
+  const decide = (decision: "save" | "approve" | "reject", after?: () => void) =>
+    run(() => saveDraftAction(itemId, { copy, assetId, decision, publishTime: time, reason }), after);
 
   const image = images.find((candidate) => candidate.id === assetId) ?? null;
   const dirty = draft !== null && (copy !== draft.copy || assetId !== draft.assetId);
@@ -293,6 +295,41 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
+      {!working && rejecting && (
+        <div className="mt-4">
+          <label htmlFor={`${id}-reason`} className="text-sm font-semibold">
+            {t.rejectLabel}
+          </label>
+          <input
+            id={`${id}-reason`}
+            className="field mt-1"
+            value={reason}
+            maxLength={300}
+            placeholder={t.rejectPlaceholder}
+            onChange={(event) => setReason(event.target.value)}
+          />
+          <p className="mt-1 text-xs text-tinta-suave">{t.rejectHint}</p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="button button-primary"
+              disabled={pending}
+              onClick={() =>
+                decide("reject", () => {
+                  setRejecting(false);
+                  setReason("");
+                })
+              }
+            >
+              {t.reject}
+            </button>
+            <button type="button" className="button button-quiet" onClick={() => setRejecting(false)}>
+              {t.cancel}
+            </button>
+          </div>
+        </div>
+      )}
+
       {published && <Results results={props.publishing.results} />}
 
       {!working && !rewriting && (published || sending) && (
@@ -318,7 +355,7 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
-      {!working && !rewriting && !published && !sending && (
+      {!working && !rewriting && !rejecting && !published && !sending && (
         <>
           {scheduled && props.publishing.scheduledLabel && (
             <p className="mt-4 font-semibold text-cancha">{p.scheduled(props.publishing.scheduledLabel)}</p>
@@ -385,7 +422,7 @@ export function PostCard(props: PostCardProps) {
               </button>
             ) : approved || rejected ? (
               approved ? (
-                <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("reject")}>
+                <button type="button" className="button button-quiet" disabled={pending} onClick={() => setRejecting(true)}>
                   {t.reject}
                 </button>
               ) : (
@@ -396,7 +433,7 @@ export function PostCard(props: PostCardProps) {
                 )
               )
             ) : (
-              <button type="button" className="button button-quiet" disabled={pending} onClick={() => decide("reject")}>
+              <button type="button" className="button button-quiet" disabled={pending} onClick={() => setRejecting(true)}>
                 {t.reject}
               </button>
             )}

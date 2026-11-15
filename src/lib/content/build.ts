@@ -1,6 +1,7 @@
 import type { BrandDnaProfile, ReviewFlag } from "@/lib/brand-dna/schema";
 import { canonicalAmount, knownPrices, pricesIn } from "@/lib/brand-dna/build";
 import { eventsBetween, type CalendarEvent } from "@/lib/calendar/calendar";
+import { describeFeedback, runLoop, type LoopCheck, type LoopFailure } from "@/lib/graph/loop";
 import type { Llm, LlmUsage } from "@/lib/llm/types";
 import {
   composeCopy,
@@ -111,6 +112,66 @@ export interface PlanInput {
   images: CandidateImage[];
   /** Recent published posts with their results, newest first. */
   past?: PastPost[];
+  /**
+   * Posts the owner rejected recently, with their reason when they gave one.
+   * This is the learning edge: what the owner turned down shapes how the next
+   * week is cut, not only the post that was rejected.
+   */
+  rejected?: RejectedPost[];
+}
+
+export interface RejectedPost {
+  date: string;
+  pillar: string;
+  topic: string;
+  offerName: string | null;
+  reason: string | null;
+}
+
+const describeRejected = (post: RejectedPost) =>
+  `- ${post.date} ${post.pillar}: "${post.topic}"${post.offerName ? ` [${post.offerName}]` : ""}${post.reason ? `. The owner said: "${post.reason}"` : ". No reason given."}`;
+
+/** Plans tried before settling, including the first. Each one is a model call. */
+export const PLAN_ATTEMPTS = 2;
+/** Drafts tried per post before the owner sees what is left, including the first. */
+export const DRAFT_ATTEMPTS = 2;
+
+const SELLING_PILLARS = new Set(["offer", "promotion"]);
+const normalizeTopic = (topic: string) =>
+  topic
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+
+/**
+ * The plan's gate, in code. Each problem is a sentence the planner can act on.
+ * `normalizePlan` has already dropped what can be fixed silently (invented
+ * offers, duplicate slots, missing photos); these are the ones only a new plan fixes.
+ */
+export function checkPlan(plan: WeekPlan, profile: BrandDnaProfile, rejected: RejectedPost[] = []): string[] {
+  const problems: string[] = [];
+  if (plan.posts.length < PLAN_LIMITS.minPosts) {
+    problems.push(`The plan has ${plan.posts.length} usable posts; plan at least ${PLAN_LIMITS.minPosts}.`);
+  }
+  const perPillar = new Map<string, number>();
+  for (const post of plan.posts) perPillar.set(post.pillar, (perPillar.get(post.pillar) ?? 0) + 1);
+  for (const [pillar, count] of perPillar) {
+    if (count > 2) problems.push(`The pillar "${pillar}" is used ${count} times; use it at most twice.`);
+  }
+  if (plan.posts.length > 0 && plan.posts.every((post) => SELLING_PILLARS.has(post.pillar))) {
+    problems.push("Every post sells. Include at least one that does not: product, behind_the_scenes, community, social_proof or tip.");
+  }
+  if (profile.promotions.length === 0 && perPillar.has("promotion")) {
+    problems.push('The profile lists no promotions, so do not use the "promotion" pillar.');
+  }
+  const turnedDown = new Map(rejected.map((post) => [normalizeTopic(post.topic), post.topic]));
+  for (const post of plan.posts) {
+    const match = turnedDown.get(normalizeTopic(post.topic));
+    if (match) problems.push(`The owner rejected the topic "${match}" recently; choose a different one.`);
+  }
+  return problems;
 }
 
 const describePast = (post: PastPost) => {
@@ -127,6 +188,8 @@ export interface BuiltPlan {
   /** `image` is an index into the input's `images`, or null. */
   briefs: Array<{ channel: string; format: string; brief: PostBrief; image: number | null }>;
   usage: LlmUsage[];
+  /** How the plan's gate ended: attempts used and problems still open. */
+  gate: { attempts: number; problems: string[] };
 }
 
 const describeEvent = (event: CalendarEvent) =>
@@ -139,34 +202,51 @@ export async function planWeek(llm: Llm, input: PlanInput): Promise<BuiltPlan> {
   const nextWeek = new Date(`${weekStart}T00:00:00Z`);
   nextWeek.setUTCDate(nextWeek.getUTCDate() + 13);
   const calendar = eventsBetween(profile.country, weekStart, nextWeek.toISOString().slice(0, 10));
-  const result = await llm.generateObject({
-    purpose: "content.plan",
-    schema: weekPlanSchema,
-    instructions: PLAN_INSTRUCTIONS,
-    prompt: [
-      `Week starting ${weekStart}. Days: ${days}.`,
-      `Market: ${profile.country}. Content locale: ${profile.locale}.`,
-      `The owner's goal: ${GOALS[profile.goal]}.`,
-      "",
-      "Recent posts and their results (newest first):",
-      input.past && input.past.length > 0 ? input.past.map(describePast).join("\n") : "(none published yet)",
-      "",
-      "Calendar (the only dates you may use):",
-      calendar.length > 0 ? calendar.map(describeEvent).join("\n") : "(no dates this week)",
-      "",
-      "Photos from the business's website:",
-      imageList(input.images),
-      "",
-      "Brand profile (JSON):",
-      profileForPrompt(profile),
-    ].join("\n"),
+  const rejected = input.rejected ?? [];
+  const usage: LlmUsage[] = [];
+
+  const basePrompt = [
+    `Week starting ${weekStart}. Days: ${days}.`,
+    `Market: ${profile.country}. Content locale: ${profile.locale}.`,
+    `The owner's goal: ${GOALS[profile.goal]}.`,
+    "",
+    "Recent posts and their results (newest first):",
+    input.past && input.past.length > 0 ? input.past.map(describePast).join("\n") : "(none published yet)",
+    "",
+    "Posts the owner rejected recently (newest first). Do not plan these topics again, and treat each reason as a rule for this week:",
+    rejected.length > 0 ? rejected.map(describeRejected).join("\n") : "(none)",
+    "",
+    "Calendar (the only dates you may use):",
+    calendar.length > 0 ? calendar.map(describeEvent).join("\n") : "(no dates this week)",
+    "",
+    "Photos from the business's website:",
+    imageList(input.images),
+    "",
+    "Brand profile (JSON):",
+    profileForPrompt(profile),
+  ].join("\n");
+
+  const checks: LoopCheck<WeekPlan>[] = [{ name: "plan_rules", run: (plan) => checkPlan(plan, profile, rejected) }];
+  const loop = await runLoop<WeekPlan>({
+    maxAttempts: PLAN_ATTEMPTS,
+    checks,
+    produce: async (feedback) => {
+      const result = await llm.generateObject({
+        purpose: "content.plan",
+        schema: weekPlanSchema,
+        instructions: PLAN_INSTRUCTIONS,
+        prompt: feedback.length === 0 ? basePrompt : `${basePrompt}\n\n${fixSection(feedback, "plan")}`,
+      });
+      usage.push(result.usage);
+      return normalizePlan(
+        result.object,
+        profile.offers.map((offer) => offer.name),
+        input.images.length,
+        calendar.map((event) => event.name),
+      );
+    },
   });
-  const plan = normalizePlan(
-    result.object,
-    profile.offers.map((offer) => offer.name),
-    input.images.length,
-    calendar.map((event) => event.name),
-  );
+  const plan = loop.output;
   if (plan.posts.length === 0) throw new Error("The plan has no posts");
   return {
     plan,
@@ -187,8 +267,17 @@ export async function planWeek(llm: Llm, input: PlanInput): Promise<BuiltPlan> {
       },
       image: post.imageNumber === null ? null : post.imageNumber - 1,
     })),
-    usage: [result.usage],
+    usage,
+    gate: { attempts: loop.attempts, problems: loop.failures.map((failure) => failure.problem) },
   };
+}
+
+/** What a failed check said, as the last part of the next attempt's prompt. */
+function fixSection(feedback: LoopFailure[], what: "plan" | "post"): string {
+  return [
+    `A check of your previous ${what} found these problems. Write a new ${what} that fixes all of them and keeps everything else that was right:`,
+    describeFeedback(feedback),
+  ].join("\n");
 }
 
 export interface DraftInput {
@@ -202,12 +291,19 @@ export interface DraftInput {
   siteText: string;
   /** The current copy and what the owner wants changed, for a rewrite. */
   rewrite?: { copy: string; instruction: string };
+  /**
+   * Problems a check outside this post found in its previous version, such as
+   * the week's gate finding a line repeated in another post. The correction edge.
+   */
+  feedback?: string[];
 }
 
 export interface BuiltDraft {
   copy: string;
   reviewFlags: ReviewFlag[];
   usage: LlmUsage[];
+  /** Drafts written before this one passed or the attempts ran out, including it. */
+  attempts: number;
 }
 
 const describeImage = (image: CandidateImage) => {
@@ -261,6 +357,35 @@ export function checkCopy(copy: string, profile: BrandDnaProfile, siteText: stri
   return [...checkDraftPrices(copy, profile, siteText), ...checkBannedWords(copy, profile)];
 }
 
+/** Stories are read in two seconds; the caption over the photo must stay short. */
+export const STORY_MAX_CHARS = 140;
+
+export function checkFormat(copy: string, format: string): ReviewFlag[] {
+  if (format !== "story") return [];
+  const length = [...copy.trim()].length;
+  return length > STORY_MAX_CHARS
+    ? [{ field: "copy", claim: String(length), reason: "story_too_long", source: "format_check" as const }]
+    : [];
+}
+
+/** A review flag as an instruction the writer can act on. System flags are not the post's fault. */
+export function flagToProblem(flag: ReviewFlag): string | null {
+  switch (flag.reason) {
+    case "price_not_found_in_pages":
+      return `The price ${flag.claim} is not on the business's site or in the profile. Remove it, or use the price the profile gives.`;
+    case "banned_word":
+      return `Remove the word "${flag.claim}": the brand never uses it.`;
+    case "story_too_long":
+      return `The story is ${flag.claim} characters; keep it under ${STORY_MAX_CHARS}.`;
+    case "review_unavailable":
+      return null;
+    default:
+      return flag.source === "critic"
+        ? `The profile does not support this claim: "${flag.claim}" (${flag.reason}). Remove it or say only what the profile states.`
+        : null;
+  }
+}
+
 /** Write one post, then check it: prices and banned words in code, claims by a second model. */
 export async function writeDraft(llm: Llm, critic: Llm, input: DraftInput): Promise<BuiltDraft> {
   const { profile, brief } = input;
@@ -269,63 +394,119 @@ export async function writeDraft(llm: Llm, critic: Llm, input: DraftInput): Prom
     ? profile.offers.find((candidate) => candidate.name === brief.offerName)
     : undefined;
 
-  const drafted = await llm.generateObject({
-    purpose: input.rewrite ? "content.rewrite" : "content.draft",
-    schema: postDraftSchema,
-    instructions: DRAFT_INSTRUCTIONS,
-    prompt: [
-      `Channel: ${input.channel}. Format: ${input.format}. Suggested date: ${brief.date}.`,
-      `Pillar: ${brief.pillar}. Topic: ${brief.topic}.`,
-      `Angle: ${brief.angle}`,
-      `Call to action: ${brief.callToAction}`,
-      offer ? `Featured offer (JSON): ${JSON.stringify(offer)}` : "No featured offer.",
-      brief.occasion
-        ? `Calendar:\n${describeEvent({ ...brief.occasion, kind: "commercial" })}\nTie the post to this date only if it reads naturally.`
-        : "Calendar: none. Do not mention any holiday, date or event.",
-      `The owner's goal: ${GOALS[profile.goal]}.`,
-      ...(input.rewrite
-        ? [
-            "",
-            "This is a rewrite. Current post:",
-            input.rewrite.copy,
-            "",
-            `The owner asks: ${input.rewrite.instruction}`,
-            "Make that change and keep what the owner did not ask to change. The facts rules still apply.",
-          ]
-        : []),
-      "",
-      input.image
-        ? `The post's photo: ${describeImage(input.image)}. Do not describe what the photo cannot show.`
-        : "The post has no photo.",
-      "",
-      "Brand profile (JSON):",
-      profileForPrompt(profile),
-    ].join("\n"),
-  });
-  usage.push(drafted.usage);
+  const basePrompt = [
+    `Channel: ${input.channel}. Format: ${input.format}. Suggested date: ${brief.date}.`,
+    `Pillar: ${brief.pillar}. Topic: ${brief.topic}.`,
+    `Angle: ${brief.angle}`,
+    `Call to action: ${brief.callToAction}`,
+    offer ? `Featured offer (JSON): ${JSON.stringify(offer)}` : "No featured offer.",
+    brief.occasion
+      ? `Calendar:\n${describeEvent({ ...brief.occasion, kind: "commercial" })}\nTie the post to this date only if it reads naturally.`
+      : "Calendar: none. Do not mention any holiday, date or event.",
+    `The owner's goal: ${GOALS[profile.goal]}.`,
+    ...(input.rewrite
+      ? [
+          "",
+          "This is a rewrite. Current post:",
+          input.rewrite.copy,
+          "",
+          `The owner asks: ${input.rewrite.instruction}`,
+          "Make that change and keep what the owner did not ask to change. The facts rules still apply.",
+        ]
+      : []),
+    "",
+    input.image
+      ? `The post's photo: ${describeImage(input.image)}. Do not describe what the photo cannot show.`
+      : "The post has no photo.",
+    "",
+    "Brand profile (JSON):",
+    profileForPrompt(profile),
+  ].join("\n");
 
-  const copy = composeCopy(input.format === "story" ? { ...drafted.object, hashtags: [] } : drafted.object);
+  const external: LoopFailure[] = (input.feedback ?? []).map((problem) => ({ check: "week_gate", problem }));
 
-  const reviewFlags = checkCopy(copy, profile, input.siteText);
-  try {
-    const critique = await critic.generateObject({
-      purpose: "content.critique",
-      schema: draftCritiqueSchema,
-      instructions: CRITIQUE_INSTRUCTIONS,
-      prompt: ["Brand profile (JSON):", profileForPrompt(profile), "", "Post:", copy].join("\n"),
+  const attempt = async (feedback: LoopFailure[]) => {
+    const all = [...external, ...feedback];
+    const drafted = await llm.generateObject({
+      purpose: input.rewrite ? "content.rewrite" : "content.draft",
+      schema: postDraftSchema,
+      instructions: DRAFT_INSTRUCTIONS,
+      prompt: all.length === 0 ? basePrompt : `${basePrompt}\n\n${fixSection(all, "post")}`,
     });
-    usage.push(critique.usage);
-    for (const finding of critique.object.flags.slice(0, 10)) {
-      reviewFlags.push({
-        field: "copy",
-        claim: finding.claim.slice(0, 400),
-        reason: finding.reason.slice(0, 400),
-        source: "critic",
-      });
-    }
-  } catch {
-    reviewFlags.push({ field: "", claim: "", reason: "review_unavailable", source: "system" });
-  }
+    usage.push(drafted.usage);
 
-  return { copy, reviewFlags, usage };
+    const copy = composeCopy(input.format === "story" ? { ...drafted.object, hashtags: [] } : drafted.object);
+    const reviewFlags = [...checkCopy(copy, profile, input.siteText), ...checkFormat(copy, input.format)];
+    try {
+      const critique = await critic.generateObject({
+        purpose: "content.critique",
+        schema: draftCritiqueSchema,
+        instructions: CRITIQUE_INSTRUCTIONS,
+        prompt: ["Brand profile (JSON):", profileForPrompt(profile), "", "Post:", copy].join("\n"),
+      });
+      usage.push(critique.usage);
+      for (const finding of critique.object.flags.slice(0, 10)) {
+        reviewFlags.push({
+          field: "copy",
+          claim: finding.claim.slice(0, 400),
+          reason: finding.reason.slice(0, 400),
+          source: "critic",
+        });
+      }
+    } catch {
+      reviewFlags.push({ field: "", claim: "", reason: "review_unavailable", source: "system" });
+    }
+    return { copy, reviewFlags };
+  };
+
+  // Every flag that names a fixable problem fails the attempt. What is left
+  // after the last attempt goes to the owner, as before.
+  const loop = await runLoop({
+    maxAttempts: DRAFT_ATTEMPTS,
+    produce: attempt,
+    checks: [
+      {
+        name: "review_flags",
+        run: (draft: { reviewFlags: ReviewFlag[] }) =>
+          draft.reviewFlags.map(flagToProblem).filter((problem): problem is string => problem !== null),
+      },
+    ],
+  });
+
+  return { ...loop.output, usage, attempts: loop.attempts };
+}
+
+/**
+ * The week's merge gate, in code: a line that appears in more than one post
+ * makes the feed read like a template. The first post keeps it; every later
+ * post that repeats it gets a problem to fix.
+ */
+export function findRepeatedLines(posts: Array<{ id: string; copy: string }>): Map<string, string[]> {
+  const key = (line: string) =>
+    line
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\p{L}\p{N}$]+/gu, " ")
+      .trim();
+  const owner = new Map<string, string>();
+  const problems = new Map<string, string[]>();
+  for (const post of posts) {
+    const lines = post.copy.split("\n").map((line) => line.trim()).filter(Boolean);
+    lines.forEach((line, index) => {
+      if (line.startsWith("#")) return;
+      const normalized = key(line);
+      // The opening line is the hook: even a short one repeated is noticed.
+      if (normalized.length < (index === 0 ? 8 : 20)) return;
+      const first = owner.get(normalized);
+      if (first === undefined) {
+        owner.set(normalized, post.id);
+      } else if (first !== post.id) {
+        const list = problems.get(post.id) ?? [];
+        list.push(`Another post this week already says "${line}". Write this post without that line or anything close to it.`);
+        problems.set(post.id, list);
+      }
+    });
+  }
+  return problems;
 }
