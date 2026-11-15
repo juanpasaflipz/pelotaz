@@ -72,6 +72,13 @@ export const postDraftSchema = z.object({
 });
 export type PostDraft = z.infer<typeof postDraftSchema>;
 
+/** A rewrite also returns the post's title, since the owner may ask to change it. */
+export const rewriteDraftSchema = postDraftSchema.extend({
+  title: z
+    .string()
+    .describe("The post's short title as the owner sees it in the plan, in the brand's language. Keep the current one unless the instruction asks to change it or the post's subject changed."),
+});
+
 export const draftCritiqueSchema = z.object({
   flags: z.array(
     z.object({
@@ -92,6 +99,8 @@ export interface PostBrief {
   callToAction: string;
   /** The photo chosen when the week was planned, as an asset id. */
   imageAssetId?: string | null;
+  /** The last rewrite failed; the post shows the previous version. Cleared by the next save or rewrite. */
+  rewriteFailed?: boolean;
   /** The calendar date the post is tied to. */
   occasion?: { name: string; date: string; endDate?: string; note: string } | null;
 }

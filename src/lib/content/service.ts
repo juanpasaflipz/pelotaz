@@ -281,7 +281,7 @@ async function draftOne(
   tenantId: string,
   item: { id: string; brandId: string; channel: string; format: string; brief: PostBrief },
   context: BrandContext,
-  rewrite?: { copy: string; instruction: string },
+  rewrite?: { copy: string; title: string; instruction: string },
   /** The photo the post has now, when there is a previous version. */
   currentAssetIds?: string[],
   /** Problems a check outside the post found in its previous version. */
@@ -312,11 +312,17 @@ async function draftOne(
         assetIds: image ? [image.id] : [],
         model: built.usage[0]?.model ?? null,
         source: "generated",
-        instruction: rewrite?.instruction ?? null,
+        instruction: rewrite ? rewrite.instruction || null : null,
         reviewFlags: built.reviewFlags,
         llmUsage: built.usage,
       });
-      await tx.update(contentItems).set({ status: "needs_approval" }).where(eq(contentItems.id, item.id));
+      await tx
+        .update(contentItems)
+        .set({
+          status: "needs_approval",
+          ...(rewrite && { brief: { ...item.brief, topic: built.title ?? item.brief.topic } as unknown as Record<string, unknown> }),
+        })
+        .where(eq(contentItems.id, item.id));
     });
     return true;
   } catch (error) {
@@ -330,7 +336,11 @@ async function draftOne(
         .limit(1);
       await tx
         .update(contentItems)
-        .set({ status: previous ? "needs_approval" : "failed" })
+        .set({
+          status: previous ? "needs_approval" : "failed",
+          // Without this the owner sees the old text and thinks the rewrite ignored them.
+          ...(rewrite && { brief: { ...item.brief, rewriteFailed: true } as unknown as Record<string, unknown> }),
+        })
         .where(eq(contentItems.id, item.id));
     }).catch(() => {});
     return false;
@@ -527,8 +537,10 @@ export const DECIDED: Array<(typeof contentItems.status.enumValues)[number]> = [
 const OPEN: Array<(typeof contentItems.status.enumValues)[number]> = ["needs_approval", "rejected", "failed", "approved"];
 
 /**
- * Mark a post for rewriting with the owner's instruction. Returns what to pass
- * to `runRewrite`, which does the model work after the response.
+ * Mark a post for rewriting with the owner's instruction. `current` is what the
+ * owner has on screen: unsaved edits to the text, photo or title are saved
+ * first, so the rewrite starts from them. `runRewrite` does the model work
+ * after the response.
  */
 export async function requestRewrite(
   db: Db,
@@ -536,17 +548,26 @@ export async function requestRewrite(
   itemId: string,
   instruction: string,
   limits: ContentLimits,
+  current?: { copy: string; assetId: string | null; title?: string },
 ): Promise<{ ok: true } | { ok: false; error: ItemError }> {
-  const text = instruction.trim().slice(0, 500);
+  const text = instruction.replace(/\s+/g, " ").trim().slice(0, 500);
   return withTenant(db, tenantId, async (tx) => {
     const [item] = await tx.select().from(contentItems).where(eq(contentItems.id, itemId));
     if (!item) return { ok: false, error: "not_found" };
     if (!OPEN.includes(item.status)) return { ok: false, error: item.status === "drafting" ? "busy" : "not_editable" };
     const spent = await claimRun(tx, tenantId, item.brandId, "rewrite", limits.rewritesPerDay);
     if (spent) return { ok: false, error: spent };
+    const copy = current ? cleanCopy(current.copy) : "";
+    if (copy) await saveOwnerVersion(tx, tenantId, item, copy, current!.assetId);
+    const { rewriteFailed: _failed, ...brief } = item.brief as unknown as PostBrief;
+    void _failed;
+    const title = cleanTitle(current?.title);
     await tx
       .update(contentItems)
-      .set({ status: "drafting", brief: { ...item.brief, rewriteInstruction: text } })
+      .set({
+        status: "drafting",
+        brief: { ...brief, ...(title && { topic: title }), rewriteInstruction: text } as unknown as Record<string, unknown>,
+      })
       .where(eq(contentItems.id, itemId));
     return { ok: true };
   });
@@ -570,13 +591,14 @@ export async function runRewrite(deps: ContentDeps, tenantId: string, itemId: st
   const { rewriteInstruction, ...brief } = loaded.item.brief as unknown as PostBrief & {
     rewriteInstruction?: string;
   };
+  // Any request is a rewrite once a version exists; an empty instruction asks for a fresh take.
   return draftOne(
     deps,
     tenantId,
     { ...loaded.item, brief },
     loaded.context,
-    loaded.latest && rewriteInstruction
-      ? { copy: loaded.latest.copy, instruction: rewriteInstruction }
+    loaded.latest
+      ? { copy: loaded.latest.copy, title: brief.topic, instruction: rewriteInstruction ?? "" }
       : undefined,
     loaded.latest?.assetIds,
   );
@@ -625,6 +647,10 @@ async function saveOwnerVersion(
   return { changed: true, flags };
 }
 
+const cleanCopy = (copy: string) => copy.replace(/\r\n/g, "\n").trim().slice(0, PLAN_LIMITS.caption + 300);
+const cleanTitle = (title: string | undefined) =>
+  typeof title === "string" ? title.replace(/\s+/g, " ").trim().slice(0, PLAN_LIMITS.shortText) : "";
+
 /** Save the owner's edits and, with `approve`, mark the post approved in the same step. */
 export async function saveItem(
   db: Db,
@@ -638,9 +664,12 @@ export async function saveItem(
     publishTime?: string;
     /** With `reject`: why, in the owner's words. The planner reads it next week. */
     reason?: string;
+    /** The post's title, when the owner changed it. */
+    title?: string;
   },
 ): Promise<{ ok: true; scheduled: boolean } | { ok: false; error: ItemError }> {
-  const copy = input.copy.replace(/\r\n/g, "\n").trim().slice(0, PLAN_LIMITS.caption + 300);
+  const copy = cleanCopy(input.copy);
+  const title = cleanTitle(input.title);
   return withTenant(db, tenantId, async (tx) => {
     const [item] = await tx.select().from(contentItems).where(eq(contentItems.id, itemId));
     if (!item) return { ok: false, error: "not_found" };
@@ -652,6 +681,13 @@ export async function saveItem(
     if (input.decision !== "reject") {
       if (!copy) return { ok: false, error: "empty" };
       await saveOwnerVersion(tx, tenantId, item, copy, input.assetId);
+    }
+    const stored = item.brief as unknown as PostBrief;
+    if ((title && title !== stored.topic) || stored.rewriteFailed) {
+      const { rewriteFailed: _failed, ...rest } = stored;
+      void _failed;
+      item.brief = { ...rest, topic: title || stored.topic } as unknown as typeof item.brief;
+      await tx.update(contentItems).set({ brief: item.brief }).where(eq(contentItems.id, itemId));
     }
     if (input.decision !== "approve") {
       const reason = input.reason?.replace(/\s+/g, " ").trim().slice(0, 300) || null;

@@ -182,6 +182,7 @@ async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/s
                 topic={brief.topic}
                 offerName={brief.offerName}
                 occasion={brief.occasion?.name ?? null}
+                rewriteFailed={brief.rewriteFailed === true}
                 draft={
                   draft && {
                     version: draft.version,

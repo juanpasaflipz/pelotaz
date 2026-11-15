@@ -72,7 +72,7 @@ function contentLlm(overrides: Record<string, (request: { prompt: string }) => u
   return createFakeLlm({
     "content.plan": () => PLAN,
     "content.draft": (request) => draftFor(request.prompt),
-    "content.rewrite": () => ({ ...DRAFT, caption: "Versión más corta. Pide hoy." }),
+    "content.rewrite": () => ({ ...DRAFT, caption: "Versión más corta. Pide hoy.", title: "Martes de 2x1" }),
     "content.critique": () => ({ flags: [] }),
     ...overrides,
   });
@@ -422,7 +422,9 @@ describe("approval", () => {
     expect(await runRewrite({ db, llm }, tenantId, item.id)).toBe(true);
 
     const rewrite = llm.calls.find((call) => call.purpose === "content.rewrite")!;
-    expect(rewrite.prompt).toContain("The owner asks: Más corto");
+    expect(rewrite.prompt).toContain("The owner's instruction: Más corto");
+    // The instruction is the last thing the model reads, after the profile.
+    expect(rewrite.prompt.indexOf("The owner's instruction")).toBeGreaterThan(rewrite.prompt.indexOf("Brand profile"));
     expect(rewrite.prompt).toContain(DRAFT.caption.split("\n")[0]);
     const after = await latestWeek(db, tenantId, brandId);
     const updated = after!.items.find((i) => i.item.id === item.id)!;
@@ -430,6 +432,87 @@ describe("approval", () => {
     expect(updated.draft?.copy).toContain("Versión más corta");
     expect(updated.draft?.instruction).toBe("Más corto");
     expect(updated.draft?.assetIds).toEqual([photo.id]);
+    // The instruction does not linger in the brief once the rewrite is done.
+    expect(updated.item.brief).not.toHaveProperty("rewriteInstruction");
+  });
+
+  it("rewrites the title when the owner asks, and starts from unsaved edits", async () => {
+    const llm = contentLlm({
+      "content.rewrite": () => ({ caption: "Pastor al carbón, martes 2x1.\nPide hoy.", hashtags: [], title: "El martes es de pastor" }),
+    });
+    const { brandId } = await plannedBrand(llm);
+    const week = await latestWeek(db, tenantId, brandId);
+    const { item } = week!.items[0];
+
+    const onScreen = "Texto que el dueño escribió y no guardó.\nPide hoy.";
+    expect(
+      await requestRewrite(db, tenantId, item.id, "Cambia el título y hazlo más corto", LIMITS, {
+        copy: onScreen,
+        assetId: null,
+        title: "Mi título",
+      }),
+    ).toEqual({ ok: true });
+    expect(await runRewrite({ db, llm }, tenantId, item.id)).toBe(true);
+
+    const rewrite = llm.calls.find((call) => call.purpose === "content.rewrite")!;
+    expect(rewrite.prompt).toContain(onScreen);
+    expect(rewrite.prompt).toContain("Current title: Mi título");
+    const after = await latestWeek(db, tenantId, brandId);
+    const updated = after!.items.find((i) => i.item.id === item.id)!;
+    expect(updated.brief.topic).toBe("El martes es de pastor");
+    expect(updated.draft?.copy).toContain("Pastor al carbón");
+  });
+
+  it("asks again when a rewrite comes back unchanged", async () => {
+    let rewrites = 0;
+    const llm = contentLlm({
+      "content.rewrite": () => {
+        rewrites += 1;
+        return rewrites === 1
+          ? { ...DRAFT, title: "Martes de 2x1" }
+          : { ...DRAFT, caption: "Martes: pastor 2x1.\nPide hoy.", title: "Martes de 2x1" };
+      },
+    });
+    const { brandId } = await plannedBrand(llm);
+    const week = await latestWeek(db, tenantId, brandId);
+    const first = week!.items.find((i) => i.brief.topic === "Martes de 2x1")!;
+    await requestRewrite(db, tenantId, first.item.id, "Más corto", LIMITS);
+    await runRewrite({ db, llm }, tenantId, first.item.id);
+
+    const calls = llm.calls.filter((call) => call.purpose === "content.rewrite");
+    expect(calls).toHaveLength(2);
+    expect(calls[1].prompt).toContain("You returned the current post unchanged");
+    const after = await latestWeek(db, tenantId, brandId);
+    expect(after!.items.find((i) => i.item.id === first.item.id)!.draft?.copy).toContain("Martes: pastor 2x1.");
+  });
+
+  it("tells the owner when a rewrite fails, until they save or rewrite again", async () => {
+    const llm = contentLlm({
+      "content.rewrite": () => {
+        throw new Error("model down");
+      },
+    });
+    const { brandId } = await plannedBrand(llm);
+    const week = await latestWeek(db, tenantId, brandId);
+    const { item, draft } = week!.items[0];
+    await requestRewrite(db, tenantId, item.id, "Más corto", LIMITS);
+    expect(await runRewrite({ db, llm }, tenantId, item.id)).toBe(false);
+    let updated = (await latestWeek(db, tenantId, brandId))!.items.find((i) => i.item.id === item.id)!;
+    expect(updated.item.status).toBe("needs_approval");
+    expect(updated.brief.rewriteFailed).toBe(true);
+
+    await saveItem(db, tenantId, item.id, { copy: draft!.copy, assetId: null, decision: "save" });
+    updated = (await latestWeek(db, tenantId, brandId))!.items.find((i) => i.item.id === item.id)!;
+    expect(updated.brief.rewriteFailed).toBeUndefined();
+  });
+
+  it("lets the owner rename a post", async () => {
+    const { brandId } = await plannedBrand();
+    const week = await latestWeek(db, tenantId, brandId);
+    const { item, draft } = week!.items[0];
+    await saveItem(db, tenantId, item.id, { copy: draft!.copy, assetId: null, decision: "save", title: "  Nuevo   título " });
+    const updated = (await latestWeek(db, tenantId, brandId))!.items.find((i) => i.item.id === item.id)!;
+    expect(updated.brief.topic).toBe("Nuevo título");
   });
 
   it("keeps each tenant's plans out of the other's reach", async () => {
