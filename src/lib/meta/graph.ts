@@ -11,6 +11,8 @@ export const GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v26.0";
 export const META_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
+  // Reactions and comments on the Page's own posts count as user content.
+  "pages_read_user_content",
   "pages_manage_posts",
   "instagram_basic",
   "instagram_content_publish",
@@ -260,16 +262,21 @@ export function createGraphClient(config: MetaConfig, fetchImpl: FetchLike = fet
     /**
      * Results of a Page post: reactions, comments and shares from the post
      * itself, and views and reach from insights where Meta still reports
-     * them (it retired the old reach metrics in June 2026).
+     * them (it retired the old reach metrics in June 2026). Reactions and
+     * comments need pages_read_user_content; a connection made before it was
+     * granted still gets views and reach. An expired token still throws.
      */
     async facebookResults(postId: string, token: string): Promise<PostResults> {
       const post = await call<{
         reactions?: { summary?: { total_count?: number } };
         comments?: { summary?: { total_count?: number } };
         shares?: { count?: number };
-      }>(postId, {
+      } | null>(postId, {
         access_token: token,
         fields: "reactions.summary(true).limit(0),comments.summary(true).limit(0),shares",
+      }).catch((error: unknown) => {
+        if (error instanceof MetaApiError && error.needsReconnect) throw error;
+        return null;
       });
       const insight = (metric: string) =>
         call<{ data: Array<{ values?: Array<{ value: number }> }> }>(`${postId}/insights`, { access_token: token, metric })
@@ -281,9 +288,9 @@ export function createGraphClient(config: MetaConfig, fetchImpl: FetchLike = fet
             if (error instanceof MetaApiError && error.needsReconnect) throw error;
             return null;
           });
-      const likes = post.reactions?.summary?.total_count ?? null;
-      const comments = post.comments?.summary?.total_count ?? null;
-      const shares = post.shares?.count ?? 0;
+      const likes = post?.reactions?.summary?.total_count ?? null;
+      const comments = post?.comments?.summary?.total_count ?? null;
+      const shares = post ? (post.shares?.count ?? 0) : null;
       return {
         views: await insight("post_media_view"),
         reach: await insight("post_total_media_view_unique"),
@@ -291,7 +298,7 @@ export function createGraphClient(config: MetaConfig, fetchImpl: FetchLike = fet
         comments,
         shares,
         saves: null,
-        interactions: (likes ?? 0) + (comments ?? 0) + shares,
+        interactions: post ? (likes ?? 0) + (comments ?? 0) + (shares ?? 0) : null,
       };
     },
 
