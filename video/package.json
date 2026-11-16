@@ -7,7 +7,7 @@
     "studio": "remotion studio src/index.ts",
     "voice": "python3 tools/build_voice.py",
     "still": "remotion still src/index.ts trabaja-en-pelotaz-pijama out/still.jpg --image-format=jpeg",
-    "render": "remotion render src/index.ts trabaja-en-pelotaz-pijama out/reel.mp4 --codec=h264 --crf=20",
+    "render": "remotion render src/index.ts trabaja-en-pelotaz-pijama out/reel.mp4 --codec=h264 --crf=18 --color-space=bt709",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

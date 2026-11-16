@@ -20,6 +20,8 @@ npm run studio                  # preview in the browser
 npm run voice -- storyboards/trabaja-en-pelotaz-pijama.json   # regenerate voice lines after changing copy
 ```
 
+`npm run render` passes `--color-space=bt709`. Without it Remotion writes full-range colour (`yuvj420p`), which some uploaders handle badly; with it the file is standard `yuv420p`, BT.709. Keep the flag on any custom render command.
+
 `npm run voice` needs `pip install edge-tts` and `ffmpeg`. The committed `.wav` files mean a render works without it.
 
 ## Storyboards
