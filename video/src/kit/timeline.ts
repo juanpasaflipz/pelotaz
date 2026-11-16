@@ -15,6 +15,8 @@ export type Storyboard = {
   voice: string;
   music: string;
   scene: string;
+  // What the character wears. Anything headed for Facebook or paid ads needs clothes.
+  character?: { outfit?: "none" | "pyjamas" };
   beats: Beat[];
   endCard: {
     id: string;

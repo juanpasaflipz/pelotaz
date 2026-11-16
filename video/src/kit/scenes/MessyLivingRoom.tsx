@@ -73,11 +73,18 @@ const Sticky: React.FC<{ x: number; y: number; rot: number; text: string; color?
   </g>
 );
 
-export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number }> = ({
+export type Outfit = "none" | "pyjamas";
+
+export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number; outfit?: Outfit }> = ({
   frame,
   revealAt,
   winkAt,
+  outfit = "none",
 }) => {
+  // Pyjamas: striped top with long sleeves and matching trousers, in the brand colour.
+  const pj = outfit === "pyjamas";
+  const cloth = "url(#pyjama)";
+  const CLOTH_D = "#D8CFBF";
   const sinceReveal = Math.max(0, frame - revealAt);
   const wiggle = sinceReveal > 0 ? Math.sin(sinceReveal / 3.2) * 9 : 0;
   const headTilt = Math.sin(frame / 10) * 2.2;
@@ -86,6 +93,12 @@ export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number }>
 
   return (
     <svg width={WORLD_W} height={WORLD_H} viewBox={`0 0 ${WORLD_W} ${WORLD_H}`}>
+      <defs>
+        <pattern id="pyjama" width={30} height={30} patternUnits="userSpaceOnUse">
+          <rect width={30} height={30} fill="#FBF7EF" />
+          <rect width={10} height={30} fill={RED} />
+        </pattern>
+      </defs>
       {/* wall */}
       <rect x={0} y={0} width={WORLD_W} height={1362} fill="#EAD9C3" />
       {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((i) => (
@@ -246,17 +259,26 @@ export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number }>
       {/* the guy */}
       <g>
         {/* arms behind head */}
-        <path d="M 2350 910 L 2262 725 L 2400 705" stroke={SKIN_D} strokeWidth={70} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M 2350 910 L 2262 725 L 2400 705" stroke={SKIN} strokeWidth={60} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M 2570 910 L 2658 725 L 2520 705" stroke={SKIN_D} strokeWidth={70} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M 2570 910 L 2658 725 L 2520 705" stroke={SKIN} strokeWidth={60} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M 2350 910 L 2262 725 L 2400 705" stroke={pj ? CLOTH_D : SKIN_D} strokeWidth={70} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M 2350 910 L 2262 725 L 2400 705" stroke={pj ? cloth : SKIN} strokeWidth={60} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M 2570 910 L 2658 725 L 2520 705" stroke={pj ? CLOTH_D : SKIN_D} strokeWidth={70} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M 2570 910 L 2658 725 L 2520 705" stroke={pj ? cloth : SKIN} strokeWidth={60} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         {/* torso */}
         <path
           d="M 2330 892 Q 2460 862 2590 892 L 2582 1010 Q 2590 1110 2560 1180 L 2360 1180 Q 2330 1110 2338 1010 Z"
-          fill={SKIN}
-          stroke={SKIN_D}
+          fill={pj ? cloth : SKIN}
+          stroke={pj ? CLOTH_D : SKIN_D}
           strokeWidth={5}
         />
+        {pj && (
+          <>
+            <path d="M 2422 876 L 2460 948 L 2498 876 Z" fill={SKIN} />
+            <path d="M 2408 874 L 2460 956 L 2512 874" stroke={CLOTH_D} strokeWidth={10} fill="none" strokeLinejoin="round" />
+            <circle cx={2460} cy={970} r={8} fill="#fff" stroke={CLOTH_D} strokeWidth={3} />
+          </>
+        )}
+        {!pj && (
+          <>
         <path d="M 2360 1060 Q 2460 1120 2560 1060" stroke={SKIN_D} strokeWidth={4} fill="none" opacity={0.6} />
         <circle cx={2410} cy={965} r={7} fill={SKIN_D} />
         <circle cx={2510} cy={965} r={7} fill={SKIN_D} />
@@ -271,6 +293,8 @@ export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number }>
             opacity={0.55}
           />
         ))}
+          </>
+        )}
         {/* neck + head */}
         <rect x={2430} y={840} width={60} height={60} fill={SKIN} />
         <g transform={`rotate(${headTilt} 2460 800)`}>
@@ -302,8 +326,8 @@ export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number }>
         {/* shins (knees are behind the laptop) */}
         {[2405, 2485].map((x, i) => (
           <g key={x}>
-            <rect x={x} y={1225} width={58} height={95} fill={SKIN} stroke={SKIN_D} strokeWidth={4} />
-            <path d={`M ${x + 14} ${1260 + i * 6} l 6 -8 M ${x + 34} ${1280} l 6 -8 M ${x + 22} ${1300} l 6 -8`} stroke={LINE} strokeWidth={3} opacity={0.5} />
+            <rect x={x} y={1225} width={58} height={95} fill={pj ? cloth : SKIN} stroke={pj ? CLOTH_D : SKIN_D} strokeWidth={4} />
+            <path display={pj ? "none" : undefined} d={`M ${x + 14} ${1260 + i * 6} l 6 -8 M ${x + 34} ${1280} l 6 -8 M ${x + 22} ${1300} l 6 -8`} stroke={LINE} strokeWidth={3} opacity={0.5} />
           </g>
         ))}
         {/* laptop: the lid covers what needs covering */}

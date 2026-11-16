@@ -184,7 +184,7 @@ export const StoryboardVideo: React.FC<StoryboardProps> = ({ storyboard: sb, dur
       {frame < tl.endStart && (
         <AbsoluteFill style={{ transform: `scale(${zoom})`, transformOrigin: `${scene.focus[0]}px ${scene.focus[1]}px` }}>
           <div style={{ position: "absolute", left: camX, top: shake }}>
-            <Scene frame={frame} revealAt={revealAt} winkAt={winkAt} />
+            <Scene frame={frame} revealAt={revealAt} winkAt={winkAt} outfit={sb.character?.outfit} />
           </div>
         </AbsoluteFill>
       )}

@@ -1,0 +1,106 @@
+{
+  "id": "trabaja-en-pelotaz-pijama",
+  "brand": {
+    "name": "Pelotaz",
+    "color": "#E3262B",
+    "pronunciation": {
+      "pelotaz.com": "pelotas punto com",
+      "Pelotaz": "Pelotas"
+    }
+  },
+  "voice": "es-MX-JorgeNeural",
+  "music": "music.wav",
+  "scene": "messy-living-room",
+  "character": {
+    "outfit": "pyjamas"
+  },
+  "beats": [
+    {
+      "id": "hook",
+      "caption": "¿Cansado de crear contenido de marketing para tu negocio?",
+      "camera": {
+        "from": "window",
+        "to": "notes",
+        "ease": "inOutSine",
+        "shake": true
+      },
+      "leadIn": 20,
+      "frames": 145
+    },
+    {
+      "id": "whip",
+      "caption": "¿Cansado de crear contenido de marketing para tu negocio?",
+      "vo": null,
+      "camera": {
+        "from": "notes",
+        "to": "couch",
+        "ease": "outCubic",
+        "shake": true
+      },
+      "frames": 35
+    },
+    {
+      "id": "reveal",
+      "caption": "Hazlo todo en Pelotaz.",
+      "camera": {
+        "from": "couch",
+        "to": "couch",
+        "zoom": [
+          1,
+          1.027
+        ]
+      },
+      "character": {
+        "feet": "wiggle"
+      },
+      "notifications": [
+        "Plan de la semana listo",
+        "Publicaciones redactadas"
+      ],
+      "leadIn": 6,
+      "frames": 70
+    },
+    {
+      "id": "punch",
+      "caption": "Nunca había sido tan fácil trabajar en Pelotaz.",
+      "vo": "Nunca había sido tan fácil, trabajar en Pelotaz.",
+      "camera": {
+        "from": "couch",
+        "to": "couch",
+        "zoom": [
+          1.027,
+          1.07
+        ]
+      },
+      "frames": 100
+    },
+    {
+      "id": "wink",
+      "caption": "Sí, así se llama. 😏",
+      "vo": "Sí, así se llama.",
+      "camera": {
+        "from": "couch",
+        "to": "couch",
+        "zoom": [
+          1.07,
+          1.09
+        ]
+      },
+      "character": {
+        "winkAt": 22
+      },
+      "leadIn": 8,
+      "frames": 62
+    }
+  ],
+  "endCard": {
+    "id": "ball-drop",
+    "transition": "brand-wipe",
+    "transitionFrames": 16,
+    "tagline": "Tu marketing en piloto automático.",
+    "cta": "Beta gratis · pelotaz.com",
+    "vo": "Pelotaz. Tu marketing en piloto automático. Beta gratis en pelotaz.com.",
+    "leadIn": 12,
+    "tail": 19
+  }
+}

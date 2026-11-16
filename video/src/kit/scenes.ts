@@ -4,7 +4,7 @@ import { Room, WORLD_W } from "./scenes/MessyLivingRoom";
 // A scene is a wide drawing plus named camera anchors. Storyboards refer to
 // anchors by name, never by pixel.
 export type SceneDef = {
-  component: React.FC<{ frame: number; revealAt: number; winkAt: number }>;
+  component: React.FC<{ frame: number; revealAt: number; winkAt: number; outfit?: "none" | "pyjamas" }>;
   width: number;
   anchors: Record<string, number>; // camera x for each named spot
   focus: [number, number]; // screen point the camera pushes in on, and wipes start from
