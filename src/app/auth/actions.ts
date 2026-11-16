@@ -55,6 +55,13 @@ export async function signUp(_previous: AuthFormState, formData: FormData): Prom
 
   const { error } = await neonAuth().signUp.email({ email, password, name: name || email });
   if (error) return { error: explain("sign-up", error), email };
+  // Neon Auth creates the account but sends no confirmation code by itself,
+  // so ask for the first one here. If this fails the person still lands on
+  // "Confirma tu correo", which can send another.
+  const sent = await emailOtp().sendVerificationOtp({ email, type: "email-verification" });
+  if (sent.error) {
+    console.error("auth provider error", { action: "sign-up-code", code: sent.error.code, status: sent.error.status });
+  }
   // Signed in already, or sent to sign in after confirming the address,
   // depending on the project's email verification setting.
   redirect("/");
