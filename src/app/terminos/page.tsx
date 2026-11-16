@@ -16,7 +16,8 @@ export default function TermsPage() {
       <p>
         Pelotaz lee el sitio web público de tu negocio, arma un perfil de marca y propone publicaciones para redes
         sociales escritas con ayuda de modelos de lenguaje. Si conectas tus cuentas, publica en ellas las
-        publicaciones que apruebes. Durante el piloto el acceso es por invitación y el servicio puede cambiar.
+        publicaciones que apruebes. Si conectas tu Perfil de Negocio de Google, revisa tu información, te propone
+        cambios y publica los posts y respuestas a reseñas que apruebes. Durante el piloto el acceso es por invitación y el servicio puede cambiar.
       </p>
 
       <h2>Tu responsabilidad</h2>
@@ -26,7 +27,7 @@ export default function TermsPage() {
           Revisa cada publicación antes de aprobarla. Las propuestas pueden contener errores aunque Pelotaz marque los
           datos que no pudo confirmar. Lo que apruebas y publicas es tu responsabilidad.
         </li>
-        <li>Cumple las reglas de Facebook e Instagram y la ley aplicable, incluida la publicidad de tus productos.</li>
+        <li>Cumple las reglas de Facebook, Instagram y Google y la ley aplicable, incluida la publicidad de tus productos.</li>
         <li>Cuida el acceso a tu cuenta.</li>
       </ul>
 
@@ -38,8 +39,8 @@ export default function TermsPage() {
 
       <h2>Límites</h2>
       <p>
-        El servicio se ofrece tal cual. No garantizamos resultados de ventas o seguidores, ni que Facebook, Instagram u
-        otros terceros estén disponibles en todo momento. En la medida que la ley lo permita, no respondemos por daños
+        El servicio se ofrece tal cual. No garantizamos resultados de ventas o seguidores, ni que Facebook, Instagram,
+        Google u otros terceros estén disponibles en todo momento. En la medida que la ley lo permita, no respondemos por daños
         indirectos derivados del uso del servicio.
       </p>
 
