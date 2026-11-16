@@ -27,6 +27,8 @@ export default function proxy(request: NextRequest) {
       "/api/internal",
       "/api/cron",
       "/api/media",
+      // Neon Auth's own servers call this; the handler checks Neon's signature.
+      "/api/webhooks/neon-auth",
       "/privacidad",
       "/terminos",
       "/eliminar-datos",

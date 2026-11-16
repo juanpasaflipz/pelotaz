@@ -111,6 +111,18 @@ Sign-in is Neon Auth, which is Better Auth run by Neon: users and sessions are s
 - **The address must be confirmed.** Turn on "Verify email at signup" in the Neon Console. An unconfirmed account is held at a "confirma tu correo" screen and gets no workspace.
 - **`SIGNUP_ALLOWLIST`, when set, limits who gets a workspace** to listed addresses or domains. Confirmation is checked first, so nobody can claim an invited address they do not control.
 
+### Sign-up, sign-in and password emails in Spanish
+
+Neon Auth's own emails are in English. Pelotaz sends its own Spanish versions instead: Neon Auth calls `POST /api/webhooks/neon-auth` for `send.otp` and `send.magic_link`, the handler checks Neon's Ed25519 signature against `${NEON_AUTH_BASE_URL}/.well-known/jwks.json`, and sends the email through Resend from `Pelotaz <no-reply@pelotaz.com>` (`src/lib/email/`).
+
+Once a webhook is subscribed to those events Neon sends nothing itself, and if the handler fails every attempt the person sees an error. So switch it on last:
+
+1. Set `RESEND_API_KEY` in Vercel (a key with sending access to pelotaz.com) and deploy.
+2. In the Neon console, **Settings → Better Auth → Webhooks**: enable, URL `https://www.pelotaz.com/api/webhooks/neon-auth`, events `send.otp` and `send.magic_link`, timeout 5 seconds.
+3. Sign up with a new address and check the code arrives in Spanish.
+
+To go back to Neon's English emails, turn the webhook off. The custom SMTP setting (Resend) stays as the fallback sender either way.
+
 ### Private beta: public page and access requests
 
 Signed-out visitors to `/` see the public page (`src/components/landing.tsx`), which says what the beta includes and has a form asking for access: email, business name and website. The website passes the crawler's own URL check, so an approved request can go straight into onboarding.
