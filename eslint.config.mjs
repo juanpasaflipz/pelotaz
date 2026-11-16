@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Separate Remotion package with its own typecheck.
+    "video/**",
   ]),
 ]);
 
