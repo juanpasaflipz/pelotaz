@@ -62,6 +62,51 @@ export const es = {
       busy: "Recibimos muchas solicitudes hoy. Intenta de nuevo mañana.",
     },
   },
+  authEmail: {
+    /** Emails sent while someone signs up, signs in or changes their password. */
+    otp: {
+      "email-verification": {
+        subject: (code: string) => `${code} es tu código para confirmar tu correo`,
+        title: "Confirma tu correo",
+        lead: "Escribe este código en Pelotaz para terminar de crear tu cuenta:",
+      },
+      "sign-in": {
+        subject: (code: string) => `${code} es tu código para entrar a Pelotaz`,
+        title: "Tu código para entrar",
+        lead: "Escribe este código en Pelotaz para entrar a tu cuenta:",
+      },
+      "forget-password": {
+        subject: (code: string) => `${code} es tu código para cambiar tu contraseña`,
+        title: "Cambia tu contraseña",
+        lead: "Escribe este código en Pelotaz para elegir una contraseña nueva:",
+      },
+    },
+    link: {
+      "email-verification": {
+        subject: "Confirma tu correo en Pelotaz",
+        title: "Confirma tu correo",
+        lead: "Toca el botón para terminar de crear tu cuenta.",
+        button: "Confirmar mi correo",
+      },
+      "sign-in": {
+        subject: "Tu enlace para entrar a Pelotaz",
+        title: "Entra a Pelotaz",
+        lead: "Toca el botón para entrar a tu cuenta.",
+        button: "Entrar",
+      },
+      "forget-password": {
+        subject: "Cambia tu contraseña de Pelotaz",
+        title: "Cambia tu contraseña",
+        lead: "Toca el botón para elegir una contraseña nueva.",
+        button: "Cambiar mi contraseña",
+      },
+    },
+    expires: (minutes: number) => `Vence en ${minutes} ${minutes === 1 ? "minuto" : "minutos"}.`,
+    linkFallback: "Si el botón no funciona, copia esta dirección en tu navegador:",
+    notYou: "Si no fuiste tú, ignora este correo: nadie puede entrar a tu cuenta sin este código.",
+    notYouLink: "Si no fuiste tú, ignora este correo: nadie puede entrar a tu cuenta sin este enlace.",
+    footer: "Pelotaz · Marketing en piloto automático para tu negocio · pelotaz.com",
+  },
   admin: {
     title: "Solicitudes de acceso",
     lead: "Quien apruebes puede crear su cuenta con ese correo. Pelotaz no envía el aviso: usa el enlace para escribirle.",
