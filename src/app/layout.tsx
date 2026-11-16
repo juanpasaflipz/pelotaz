@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import { Analytics } from "@vercel/analytics/next";
 // Self-hosted variable fonts: no request to a font CDN at build or run time.
 import "@fontsource-variable/nunito";
 import "@fontsource-variable/instrument-sans";
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Términos
           </Link>
         </footer>
+        <Analytics />
       </body>
     </html>
   );

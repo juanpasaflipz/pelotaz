@@ -81,7 +81,10 @@ export default function PrivacyPage() {
       <h2>Con quién los compartimos</h2>
       <p>Solo con los proveedores que necesitamos para prestar el servicio, que los tratan por cuenta nuestra:</p>
       <ul>
-        <li>Neon (base de datos e inicio de sesión) y Vercel (alojamiento del sitio).</li>
+        <li>
+          Neon (base de datos e inicio de sesión), Vercel (alojamiento del sitio y conteo anónimo de visitas, sin
+          cookies) y Resend (envío de correos, como tus códigos de acceso).
+        </li>
         <li>
           Anthropic y, en su caso, OpenAI (modelos de lenguaje), que reciben el contenido de tu sitio y de tu perfil de
           marca para escribir las propuestas. Estos proveedores no usan los datos enviados por su API para entrenar
