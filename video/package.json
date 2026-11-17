@@ -1,0 +1,28 @@
+{
+  "name": "pelotaz-video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Storyboard-driven video rendering for Pelotaz (Remotion). Separate from the Next.js app.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "voice": "python3 tools/build_voice.py",
+    "still": "remotion still src/index.ts trabaja-en-pelotaz-pijama out/still.jpg --image-format=jpeg",
+    "render": "remotion render src/index.ts trabaja-en-pelotaz-pijama out/reel.mp4 --codec=h264 --crf=18 --color-space=bt709",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/nunito": "^5.3.0",
+    "@remotion/cli": "4.0.544",
+    "@remotion/renderer": "4.0.544",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "remotion": "4.0.544"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.19"
+  }
+}
