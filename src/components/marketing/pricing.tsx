@@ -112,7 +112,7 @@ function PlanCard(props: {
       <p className="mt-1 min-h-12 text-tinta-suave">{props.forWhom}</p>
       <div className="mt-3">{props.price}</div>
       <p className="mt-4 text-sm font-semibold">{props.includesLabel}</p>
-      <ul className="mt-2 grid flex-1 gap-2">
+      <ul className="mt-2 grid flex-1 content-start gap-2">
         {props.features.map(({ feature, module }) => {
           const status = statusOf(module);
           return (
