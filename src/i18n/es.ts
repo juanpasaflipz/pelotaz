@@ -336,6 +336,11 @@ export const es = {
         { label: "Facebook", href: "https://www.facebook.com/compraenpelotaz" },
       ],
     },
+    meta: {
+      /** The title WhatsApp shows when someone shares pelotaz.com/beta. */
+      betaTitle: "Beta gratis de Pelotaz",
+      betaDescription: "Pelotaz planea y escribe el marketing de tu negocio. Tú solo apruebas. Cupo limitado.",
+    },
     jsonLd: {
       description:
         "Pelotaz planea y escribe el marketing de tu negocio: perfil de marca, plan semanal y borradores revisados. Tú solo apruebas.",
@@ -420,6 +425,10 @@ export const es = {
     revoke: "Quitar acceso",
     notify: "Avisarle por correo",
     asked: (day: string) => `Pidió acceso el ${day}`,
+    origin: (source: string | null, utm: Record<string, string> | null) =>
+      [source && `Llegó por /${source}`, utm && Object.entries(utm).map(([k, v]) => `${k.replace("utm_", "")}: ${v}`).join(", ")]
+        .filter(Boolean)
+        .join(" · "),
     interest: (plan: string, billing: string | null) =>
       `Quiere ${plan === "pro" ? "Pro" : "Starter"}${billing ? ` (${billing})` : ""}`,
     inviteSubject: "Tu acceso a Pelotaz está listo",

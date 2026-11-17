@@ -38,7 +38,16 @@ const emailSchema = z.email().max(254);
  */
 export async function submitAccessRequest(
   db: Db,
-  input: { email: string; businessName: string; website: string; planInterest?: string; billingInterest?: string },
+  input: {
+    email: string;
+    businessName: string;
+    website: string;
+    planInterest?: string;
+    billingInterest?: string;
+    /** The short address the visitor arrived through: "beta" or "empieza". */
+    source?: string;
+    utm?: unknown;
+  },
   options: { perDay?: number } = {},
 ): Promise<SubmitResult> {
   const email = emailSchema.safeParse(input.email.trim().toLowerCase());
@@ -60,6 +69,13 @@ export async function submitAccessRequest(
   const planInterest: PaidPlan | null = isPaidPlan(input.planInterest) ? input.planInterest : null;
   const billingInterest: Billing | null = planInterest && isBilling(input.billingInterest) ? input.billingInterest : null;
   const interest = planInterest ? { planInterest, billingInterest } : {};
+  const source = isSource(input.source) ? input.source : null;
+  const utm = cleanUtm(input.utm);
+  // Where the visitor came from is kept from the first request that says.
+  const origin = {
+    ...(source ? { source: sql`coalesce(${accessRequests.source}, ${source}::access_request_source)` } : {}),
+    ...(utm ? { utm: sql`coalesce(${accessRequests.utm}, ${JSON.stringify(utm)}::jsonb)` } : {}),
+  };
 
   const perDay = options.perDay ?? accessRequestsPerDay();
   return db.transaction(async (tx) => {
@@ -74,11 +90,14 @@ export async function submitAccessRequest(
       if (existing.status === "pending") {
         await tx
           .update(accessRequests)
-          .set({ businessName, website, ...interest })
+          .set({ businessName, website, ...interest, ...origin })
           .where(eq(accessRequests.id, existing.id));
-      } else if (planInterest) {
-        // Interest in a plan is worth keeping even after a decision; the decision itself never changes here.
-        await tx.update(accessRequests).set(interest).where(eq(accessRequests.id, existing.id));
+      } else if (planInterest || source || utm) {
+        // Interest and origin are worth keeping even after a decision; the decision itself never changes here.
+        await tx
+          .update(accessRequests)
+          .set({ ...interest, ...origin })
+          .where(eq(accessRequests.id, existing.id));
       }
       return { ok: true, email: email.data, created: false } as const;
     }
@@ -90,9 +109,28 @@ export async function submitAccessRequest(
       .where(gte(accessRequests.createdAt, since));
     if (recent >= perDay) return { ok: false, error: "busy" } as const;
 
-    await tx.insert(accessRequests).values({ email: email.data, businessName, website, ...interest });
+    await tx.insert(accessRequests).values({ email: email.data, businessName, website, ...interest, source, utm });
     return { ok: true, email: email.data, created: true } as const;
   });
+}
+
+export type AccessRequestSource = NonNullable<AccessRequest["source"]>;
+
+export function isSource(value: unknown): value is AccessRequestSource {
+  return value === "beta" || value === "empieza";
+}
+
+const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id"] as const;
+
+/** Only the standard `utm_*` keys, as short strings; null when there are none. */
+export function cleanUtm(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const clean: Record<string, string> = {};
+  for (const key of UTM_KEYS) {
+    const value = (raw as Record<string, unknown>)[key];
+    if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 200);
+  }
+  return Object.keys(clean).length > 0 ? clean : null;
 }
 
 /** Newest first. */

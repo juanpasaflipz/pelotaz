@@ -1,10 +1,10 @@
 "use client";
 
-import { track } from "@vercel/analytics";
 import { useState } from "react";
 import { es } from "@/i18n/es";
 import { BILLINGS, formatPesos, PAID_PLANS, priceView, type Billing, type PaidPlan } from "@/lib/pricing";
 import { PLAN_FEATURES, statusOf } from "./modules";
+import { trackEvent } from "./analytics";
 import { choosePlan } from "./plan-interest";
 import { StatusChip } from "./status-chip";
 
@@ -25,7 +25,7 @@ export function Pricing() {
             aria-checked={billing === option}
             onClick={() => {
               setBilling(option);
-              track("billing_toggle", { billing: option });
+              trackEvent("billing_toggle", { billing: option });
             }}
             className={`rounded-full px-5 py-1.5 font-semibold ${billing === option ? "bg-tinta text-raya" : "text-tinta"}`}
           >
@@ -43,7 +43,7 @@ export function Pricing() {
           includesLabel={t.plans.beta.includesLabel}
           features={PLAN_FEATURES.beta}
           button={
-            <a href="#acceso" onClick={() => track("plan_button", { plan: "beta" })} className="button button-primary w-full">
+            <a href="#acceso" onClick={() => trackEvent("plan_button", { plan: "beta" })} className="button button-primary w-full">
               {t.plans.beta.button}
             </a>
           }
@@ -84,7 +84,7 @@ function PaidCard({ plan, billing }: { plan: PaidPlan; billing: Billing }) {
           href="#acceso"
           onClick={() => {
             choosePlan({ plan, billing });
-            track("plan_button", { plan, billing });
+            trackEvent("plan_button", { plan, billing });
           }}
           className={`button w-full ${plan === "pro" ? "button-primary" : "button-quiet"}`}
         >

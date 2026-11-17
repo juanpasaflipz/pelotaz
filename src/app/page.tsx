@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { AccessNotice } from "@/components/access-notice";
 import { Landing } from "@/components/landing";
+import { landingMetadata } from "@/components/marketing/metadata";
 import { NewBrandForm } from "@/components/new-brand-form";
 import { SetupNotice } from "@/components/setup-notice";
 import { StatusLabel } from "@/components/status-label";
@@ -11,18 +12,7 @@ import { es } from "@/i18n/es";
 import { getAccessOrSetup } from "@/lib/auth/session";
 import { listBrands } from "@/lib/data";
 
-export const metadata: Metadata = {
-  title: { absolute: `${es.app.name}: ${es.marketing.hero.titleBefore} ${es.marketing.hero.titleHighlight}` },
-  description: es.marketing.hero.lead,
-  alternates: { canonical: "/" },
-  openGraph: {
-    type: "website",
-    locale: "es_MX",
-    siteName: es.app.name,
-    title: `${es.marketing.hero.titleBefore} ${es.marketing.hero.titleHighlight}`,
-    description: es.marketing.hero.lead,
-  },
-};
+export const metadata: Metadata = landingMetadata("root");
 
 // Creating a brand can run the crawl in-process in local development.
 export const maxDuration = 300;
@@ -42,7 +32,7 @@ export default function HomePage() {
 async function Home() {
   await connection();
   const access = await getAccessOrSetup();
-  if (access.kind === "signed_out") return <Landing />;
+  if (access.kind === "signed_out") return <Landing entry="root" />;
   return (
     <main>
       <section className="wall">

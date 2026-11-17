@@ -20,6 +20,10 @@ export default function proxy(request: NextRequest) {
     // "/" matches the home page only: signed-out visitors get the public page there.
     publicRoutes: [
       "/",
+      // Short addresses of the public page, and the image WhatsApp and Facebook show when it is shared.
+      "/beta",
+      "/precios",
+      "/opengraph-image",
       "/auth/sign-in",
       "/auth/sign-up",
       "/auth/olvide",

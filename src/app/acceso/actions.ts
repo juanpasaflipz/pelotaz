@@ -15,6 +15,14 @@ export interface RequestAccessState {
 const field = (formData: FormData, name: string, max: number) =>
   String(formData.get(name) ?? "").trim().slice(0, max);
 
+function parseJson(text: string): unknown {
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The public form. No session: anyone may ask. */
 export async function requestAccess(
   _previous: RequestAccessState,
@@ -27,6 +35,8 @@ export async function requestAccess(
   const interest = {
     planInterest: field(formData, "plan_interest", 20),
     billingInterest: field(formData, "billing_interest", 20),
+    source: field(formData, "source", 20),
+    utm: parseJson(field(formData, "utm", 2_000)),
   };
 
   // A field people never see. Scripts that fill every input get the same

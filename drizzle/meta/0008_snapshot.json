@@ -1,5 +1,5 @@
 {
-  "id": "2a6f90b1-0f46-45e7-b316-2261358034fd",
+  "id": "d296083c-5bc2-4960-bee5-df5d4bc31a2d",
   "prevId": "bf38e7f2-b52d-423c-8820-1d966abf0122",
   "version": "7",
   "dialect": "postgresql",
@@ -71,6 +71,19 @@
           "name": "billing_interest",
           "type": "access_request_billing",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source": {
+          "name": "source",
+          "type": "access_request_source",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "utm": {
+          "name": "utm",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         }
@@ -2197,6 +2210,14 @@
       "values": [
         "starter",
         "pro"
+      ]
+    },
+    "public.access_request_source": {
+      "name": "access_request_source",
+      "schema": "public",
+      "values": [
+        "beta",
+        "empieza"
       ]
     },
     "public.access_request_status": {

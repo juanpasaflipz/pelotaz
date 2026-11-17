@@ -1,6 +1,6 @@
 "use client";
 
-import { track } from "@vercel/analytics";
+import { trackEvent } from "./analytics";
 import type { ComponentProps } from "react";
 
 /** A link that records one analytics event when tapped. */
@@ -9,7 +9,7 @@ export function TrackedLink({ event, ...props }: ComponentProps<"a"> & { event: 
     <a
       {...props}
       onClick={(click) => {
-        track(event);
+        trackEvent(event);
         props.onClick?.(click);
       }}
     />

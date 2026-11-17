@@ -4,8 +4,10 @@ import { AccessRequestForm } from "@/components/access-request-form";
 import { BallMark } from "@/components/logo";
 import { CaseStudy } from "@/components/marketing/case-study";
 import { JonasOnCouch } from "@/components/marketing/jonas";
+import type { LandingEntry } from "@/components/marketing/metadata";
 import { MODULES, statusOf, type ModuleId } from "@/components/marketing/modules";
 import { Pricing } from "@/components/marketing/pricing";
+import { ScrollOnLoad } from "@/components/marketing/scroll-on-load";
 import { StatusChip } from "@/components/marketing/status-chip";
 import { TrackedLink } from "@/components/marketing/track";
 import { es } from "@/i18n/es";
@@ -17,10 +19,15 @@ const t = es.marketing;
  * proven: Jonás does nothing, the red ball does the work. Every module wears
  * its real status (src/components/marketing/modules.ts) and every number has
  * a source. Plan: claude/landing-page-plan.md in the Pelotaz project.
+ *
+ * `entry` is the address it was opened at: /beta opens at the form and tags
+ * requests as coming from there; /precios opens at pricing.
  */
-export function Landing() {
+export function Landing({ entry }: { entry: LandingEntry }) {
   return (
     <main>
+      {entry === "beta" && <ScrollOnLoad to="acceso" />}
+      {entry === "precios" && <ScrollOnLoad to="precios" />}
       <JsonLd />
       <SectionNav />
       <Hero />
@@ -54,7 +61,7 @@ export function Landing() {
         </div>
       </section>
       <Faq />
-      <Closing />
+      <Closing source={entry === "beta" ? "beta" : undefined} />
     </main>
   );
 }
@@ -351,7 +358,7 @@ function Faq() {
   );
 }
 
-function Closing() {
+function Closing({ source }: { source?: "beta" }) {
   return (
     <section id="acceso" className="wall scroll-mt-12">
       <div className="mx-auto grid max-w-5xl gap-8 px-5 pb-16 pt-12 md:grid-cols-2">
@@ -364,7 +371,7 @@ function Closing() {
         </div>
         <div>
           <h3 className="display text-3xl">{es.landing.formTitle}</h3>
-          <AccessRequestForm />
+          <AccessRequestForm source={source} />
         </div>
       </div>
     </section>

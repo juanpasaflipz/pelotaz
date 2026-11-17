@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { track } from "@vercel/analytics";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { requestAccess, type RequestAccessState } from "@/app/acceso/actions";
 import { BallMark } from "@/components/logo";
+import { trackEvent } from "@/components/marketing/analytics";
 import { PLAN_INTEREST_EVENT, type PlanInterest } from "@/components/marketing/plan-interest";
 import { es } from "@/i18n/es";
 
@@ -18,12 +18,21 @@ const FIELD_OF_ERROR = {
   busy: null,
 } as const;
 
-/** The public form that asks for a place in the private beta. */
-export function AccessRequestForm() {
+const noSubscribe = () => () => {};
+
+function utmFromAddress(): string {
+  const found = [...new URLSearchParams(window.location.search)].filter(([key]) => key.startsWith("utm_"));
+  return found.length > 0 ? JSON.stringify(Object.fromEntries(found)) : "";
+}
+
+/** The public form that asks for a place in the private beta. `source` is the short address the page was opened at. */
+export function AccessRequestForm({ source }: { source?: "beta" | "empieza" }) {
   const [state, action, pending] = useActionState(requestAccess, initial);
   const t = es.landing;
   const [interest, setInterest] = useState<PlanInterest | null>(null);
   const started = useRef(false);
+  // The visit's utm_* parameters, sent with the request. Empty on the server.
+  const utm = useSyncExternalStore(noSubscribe, utmFromAddress, () => "");
 
   // A paid plan's button on the same page says which plan this request is about.
   useEffect(() => {
@@ -33,7 +42,7 @@ export function AccessRequestForm() {
   }, []);
 
   useEffect(() => {
-    if (state.sentTo) track("form_sent", interest ? { plan: interest.plan, billing: interest.billing } : {});
+    if (state.sentTo) trackEvent("form_sent", interest ? { plan: interest.plan, billing: interest.billing } : {});
   }, [state.sentTo, interest]);
 
   if (state.sentTo) {
@@ -58,7 +67,7 @@ export function AccessRequestForm() {
       onFocus={() => {
         if (started.current) return;
         started.current = true;
-        track("form_start");
+        trackEvent("form_start");
       }}
     >
       {interest && (
@@ -71,6 +80,8 @@ export function AccessRequestForm() {
       )}
       <input type="hidden" name="plan_interest" value={interest?.plan ?? ""} />
       <input type="hidden" name="billing_interest" value={interest?.billing ?? ""} />
+      <input type="hidden" name="source" value={source ?? ""} />
+      <input type="hidden" name="utm" value={utm} />
       <div>
         <label htmlFor="access-email" className="mb-1.5 block font-semibold">
           {t.email}

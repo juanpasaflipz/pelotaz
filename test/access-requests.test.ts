@@ -161,6 +161,44 @@ describe("interest in a paid plan", () => {
   });
 });
 
+describe("where a request came from", () => {
+  it("records the short address and the standard utm parameters", async () => {
+    await submitAccessRequest(db, {
+      email: "grupo@taqueria.mx",
+      businessName: "Tacos Grupo",
+      website: "tacosgrupo.mx",
+      source: "beta",
+      utm: { utm_source: "whatsapp", utm_campaign: " grupo-500 ", fbclid: "x", utm_medium: 3 },
+    });
+    expect(await rowFor("grupo@taqueria.mx")).toMatchObject({
+      source: "beta",
+      utm: { utm_source: "whatsapp", utm_campaign: "grupo-500" },
+    });
+  });
+
+  it("keeps the first origin when the same person asks again from elsewhere", async () => {
+    await submitAccessRequest(db, {
+      email: "grupo@taqueria.mx",
+      businessName: "Tacos Grupo",
+      website: "tacosgrupo.mx",
+      source: "empieza",
+      utm: { utm_source: "facebook" },
+    });
+    expect(await rowFor("grupo@taqueria.mx")).toMatchObject({ source: "beta", utm: { utm_source: "whatsapp" } });
+  });
+
+  it("fills an empty origin on a later request", async () => {
+    await ask("tarde@taqueria.mx");
+    await submitAccessRequest(db, { email: "tarde@taqueria.mx", businessName: "T", website: "t.mx", source: "beta" });
+    expect(await rowFor("tarde@taqueria.mx")).toMatchObject({ source: "beta", utm: null });
+  });
+
+  it("ignores unknown sources", async () => {
+    await submitAccessRequest(db, { email: "otro@taqueria.mx", businessName: "O", website: "o.mx", source: "admin" });
+    expect(await rowFor("otro@taqueria.mx")).toMatchObject({ source: null });
+  });
+});
+
 describe("approval decides who gets a workspace", () => {
   it("keeps a pending address out and lets an approved one in", async () => {
     await ask("luz@panaderia.mx");
