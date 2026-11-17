@@ -47,27 +47,49 @@ export const es = {
           title: "Llegan los borradores del día",
           body: "Jonás los lee en su celular y aprueba con un pulgar arriba.",
           module: "drafts",
+          mood: "☕",
+          chat: [
+            { from: "pelotaz", text: "Buenos días, Jonás. Ya están tus publicaciones de hoy. ¿Las apruebo?" },
+            { from: "jonas", text: "👍" },
+          ],
         },
         {
           time: "13:00",
           title: "Sale la publicación",
           body: "Pelotaz la publica en Instagram y Facebook a la hora en que tus clientes están viendo.",
           module: "publishing",
+          mood: "🌯",
+          chat: [{ from: "pelotaz", text: "Listo: publicado en Instagram y Facebook ✅" }],
         },
         {
           time: "17:00",
           title: "Una reseña nueva en Google",
           body: "Pelotaz escribe la respuesta. Jonás solo la aprueba.",
           module: "google",
+          mood: "💤",
+          chat: [
+            { from: "pelotaz", text: "Nueva reseña en Google ⭐ Te dejé una respuesta. ¿La mando?" },
+            { from: "jonas", text: "Mándala" },
+          ],
         },
         {
           time: "Lunes",
           title: "Lo que te dejó la semana",
           body: "Un estimado en pesos de lo que vendiste gracias a Pelotaz, comparado con tus semanas normales.",
           module: "results",
+          mood: "😎",
+          chat: [
+            {
+              from: "pelotaz",
+              text: "Esto te generó Pelotaz la semana pasada: un estimado en pesos, comparado con tus semanas normales.",
+            },
+          ],
         },
       ],
       seeModule: "Ver el módulo",
+      chatName: "Pelotaz",
+      chatStatus: "en línea",
+      storyLabel: "Ilustración: el chat de Jonás con Pelotaz a lo largo del día.",
     },
     modules: {
       title: "Todo tu marketing,",
@@ -177,7 +199,7 @@ export const es = {
     caseStudy: {
       title: "Caso real:",
       titleHighlight: "Juanberto's",
-      lead: "Juanberto's California Burritos, en la Roma Sur, usa Pelotaz todos los días. Estos números salen directo del sistema.",
+      lead: "Juanberto's California Burritos, en la Roma Sur, ya usa Pelotaz. Estos números salen directo del sistema.",
       planned: "publicaciones planeadas",
       approved: "aprobadas por el dueño",
       published: "publicadas",

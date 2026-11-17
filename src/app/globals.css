@@ -157,3 +157,140 @@ textarea.field {
     transform: translateY(0) scaleY(0.9);
   }
 }
+
+/*
+ * Public page motion (PR 2). Everything here is progressive: without
+ * scroll-driven animation support, or with reduced motion asked for, the page
+ * is the static PR 1 page.
+ */
+
+/* Hero: the notifications rise in, one after another. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-note {
+    animation: note-in 0.5s ease-out both;
+    animation-delay: calc(var(--i) * 0.7s + 0.4s);
+  }
+}
+@keyframes note-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+
+/* The ball as the page's guide: it rolls along the bottom of the sticky bar. */
+.nav-track {
+  display: none;
+}
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .nav-track {
+      display: block;
+      position: absolute;
+      inset: auto 1.25rem -0.45rem;
+      height: 0.875rem;
+      pointer-events: none;
+    }
+    .nav-ball {
+      position: absolute;
+      left: 0;
+      display: block;
+      animation: nav-roll linear both;
+      animation-timeline: scroll(root block);
+    }
+    .nav-ball > svg {
+      display: block;
+      animation: nav-hop linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+@keyframes nav-roll {
+  to {
+    left: calc(100% - 0.875rem);
+  }
+}
+/* Ten hops over the page, the spin carries across them. */
+@keyframes nav-hop {
+  0%, 10%, 20%, 30%, 40%, 50%, 60%, 70%, 80%, 90%, 100% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+  5%, 15%, 25%, 35%, 45%, 55%, 65%, 75%, 85%, 95% {
+    transform: translateY(-0.6rem);
+    animation-timing-function: ease-in;
+  }
+}
+
+/* "Un día en Pelotaz": cards by default, the pinned chat where it can run. */
+.day-story {
+  display: none;
+}
+@supports (animation-timeline: view()) {
+  @media (min-width: 48rem) and (prefers-reduced-motion: no-preference) {
+    .day-cards {
+      display: none;
+    }
+    .day-story {
+      display: block;
+      height: 380vh;
+      view-timeline: --day block;
+    }
+    .day-sticky {
+      position: sticky;
+      top: 4.5rem;
+      min-height: calc(100vh - 6rem);
+    }
+    .day-msg {
+      animation: day-msg linear both;
+      animation-timeline: --day;
+    }
+    .day-only {
+      animation: day-only linear both;
+      animation-timeline: --day;
+    }
+    .day-in {
+      animation: day-in linear both;
+      animation-timeline: --day;
+    }
+  }
+}
+@keyframes day-msg {
+  from {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    padding-block: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    max-height: 10rem;
+    margin-top: 0.5rem;
+  }
+}
+@keyframes day-only {
+  0% {
+    opacity: 0;
+    visibility: hidden;
+  }
+  12%,
+  88% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes day-in {
+  from {
+    opacity: 0;
+    visibility: hidden;
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
