@@ -3,6 +3,7 @@ import { z } from "zod";
 import { accessRequests } from "@/db/schema";
 import type { Db } from "@/db/tenant";
 import { parsePublicUrl, UnsafeUrlError } from "@/lib/crawl/url-guard";
+import { isBilling, isPaidPlan, type Billing, type PaidPlan } from "@/lib/pricing";
 
 /**
  * Requests to join the private beta, made from the public page and decided
@@ -37,7 +38,7 @@ const emailSchema = z.email().max(254);
  */
 export async function submitAccessRequest(
   db: Db,
-  input: { email: string; businessName: string; website: string },
+  input: { email: string; businessName: string; website: string; planInterest?: string; billingInterest?: string },
   options: { perDay?: number } = {},
 ): Promise<SubmitResult> {
   const email = emailSchema.safeParse(input.email.trim().toLowerCase());
@@ -55,6 +56,11 @@ export async function submitAccessRequest(
     return { ok: false, error: typo ? "invalid_url" : "private_url" };
   }
 
+  // From a paid plan's button on the public page. Anything else is ignored.
+  const planInterest: PaidPlan | null = isPaidPlan(input.planInterest) ? input.planInterest : null;
+  const billingInterest: Billing | null = planInterest && isBilling(input.billingInterest) ? input.billingInterest : null;
+  const interest = planInterest ? { planInterest, billingInterest } : {};
+
   const perDay = options.perDay ?? accessRequestsPerDay();
   return db.transaction(async (tx) => {
     // One at a time, so simultaneous requests cannot all slip under the ceiling.
@@ -66,7 +72,13 @@ export async function submitAccessRequest(
       .limit(1);
     if (existing) {
       if (existing.status === "pending") {
-        await tx.update(accessRequests).set({ businessName, website }).where(eq(accessRequests.id, existing.id));
+        await tx
+          .update(accessRequests)
+          .set({ businessName, website, ...interest })
+          .where(eq(accessRequests.id, existing.id));
+      } else if (planInterest) {
+        // Interest in a plan is worth keeping even after a decision; the decision itself never changes here.
+        await tx.update(accessRequests).set(interest).where(eq(accessRequests.id, existing.id));
       }
       return { ok: true, email: email.data, created: false } as const;
     }
@@ -78,7 +90,7 @@ export async function submitAccessRequest(
       .where(gte(accessRequests.createdAt, since));
     if (recent >= perDay) return { ok: false, error: "busy" } as const;
 
-    await tx.insert(accessRequests).values({ email: email.data, businessName, website });
+    await tx.insert(accessRequests).values({ email: email.data, businessName, website, ...interest });
     return { ok: true, email: email.data, created: true } as const;
   });
 }

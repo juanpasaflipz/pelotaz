@@ -111,6 +111,56 @@ describe("asking for access", () => {
   });
 });
 
+describe("interest in a paid plan", () => {
+  it("records the plan and billing option from a plan's button", async () => {
+    await submitAccessRequest(db, {
+      email: "pro@taqueria.mx",
+      businessName: "Tacos Pro",
+      website: "tacospro.mx",
+      planInterest: "pro",
+      billingInterest: "mensual",
+    });
+    expect(await rowFor("pro@taqueria.mx")).toMatchObject({ planInterest: "pro", billingInterest: "mensual" });
+  });
+
+  it("ignores values that are not a plan or a billing option", async () => {
+    await submitAccessRequest(db, {
+      email: "raro@taqueria.mx",
+      businessName: "Tacos Raros",
+      website: "tacosraros.mx",
+      planInterest: "enterprise",
+      billingInterest: "semanal",
+    });
+    expect(await rowFor("raro@taqueria.mx")).toMatchObject({ planInterest: null, billingInterest: null });
+  });
+
+  it("keeps the latest interest without changing a decision", async () => {
+    const [row] = await db
+      .insert(accessRequests)
+      .values({ email: "decidida@taqueria.mx", businessName: "Tacos D", website: "https://d.mx/", status: "approved" })
+      .returning();
+    await submitAccessRequest(db, {
+      email: "decidida@taqueria.mx",
+      businessName: "Otro nombre",
+      website: "otro.mx",
+      planInterest: "starter",
+      billingInterest: "anual",
+    });
+    expect(await rowFor("decidida@taqueria.mx")).toMatchObject({
+      id: row.id,
+      status: "approved",
+      businessName: "Tacos D",
+      planInterest: "starter",
+      billingInterest: "anual",
+    });
+  });
+
+  it("a plain request does not erase an earlier interest", async () => {
+    await ask("pro@taqueria.mx");
+    expect(await rowFor("pro@taqueria.mx")).toMatchObject({ planInterest: "pro", billingInterest: "mensual" });
+  });
+});
+
 describe("approval decides who gets a workspace", () => {
   it("keeps a pending address out and lets an approved one in", async () => {
     await ask("luz@panaderia.mx");

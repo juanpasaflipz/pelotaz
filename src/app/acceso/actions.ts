@@ -24,12 +24,16 @@ export async function requestAccess(
   const businessName = field(formData, "business", 120);
   const website = field(formData, "website", 2_000);
   const typed = { email, businessName, website };
+  const interest = {
+    planInterest: field(formData, "plan_interest", 20),
+    billingInterest: field(formData, "billing_interest", 20),
+  };
 
   // A field people never see. Scripts that fill every input get the same
   // answer as a real request, and nothing is saved.
   if (field(formData, "company_fax", 200)) return { error: null, sentTo: email, ...typed };
 
-  const result = await submitAccessRequest(systemDb(), typed);
+  const result = await submitAccessRequest(systemDb(), { ...typed, ...interest });
   if (!result.ok) return { error: result.error, sentTo: null, ...typed };
   return { error: null, sentTo: result.email, ...typed };
 }

@@ -542,6 +542,10 @@ export const accessRequestStatus = pgEnum("access_request_status", [
  *
  * An approved row works like an entry in `SIGNUP_ALLOWLIST` for that address.
  */
+/** Which paid plan a visitor asked to hear about from the public pricing section. */
+export const accessRequestPlan = pgEnum("access_request_plan", ["starter", "pro"]);
+export const accessRequestBilling = pgEnum("access_request_billing", ["anual", "mensual"]);
+
 export const accessRequests = pgTable(
   "access_requests",
   {
@@ -556,6 +560,9 @@ export const accessRequests = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     /** The admin's address. */
     decidedBy: text("decided_by"),
+    /** Set when the request came from a paid plan's button. The latest ask wins. */
+    planInterest: accessRequestPlan("plan_interest"),
+    billingInterest: accessRequestBilling("billing_interest"),
   },
   (t) => [
     uniqueIndex("access_requests_email").on(t.email),

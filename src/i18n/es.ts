@@ -10,37 +10,334 @@ export const es = {
     brands: "Marcas",
     requests: "Solicitudes",
   },
+  /** The public page signed-out visitors see at pelotaz.com. */
+  marketing: {
+    nav: {
+      label: "Secciones",
+      modules: "Módulos",
+      how: "Cómo funciona",
+      pricing: "Precios",
+      faq: "Preguntas",
+      cta: "Pide tu acceso",
+    },
+    status: {
+      beta: "En la beta",
+      building: "En construcción",
+      soon: "Próximamente",
+    },
+    hero: {
+      titleBefore: "Haz tu marketing",
+      titleHighlight: "en Pelotaz.",
+      /** The long line names WhatsApp approval and video; use it once both ship. */
+      leadLong: "Pelotaz planea, escribe, graba y publica por tu negocio. Tú solo apruebas por WhatsApp.",
+      lead: "Pelotaz planea y escribe el marketing de tu negocio. Tú solo apruebas.",
+      cta: "Pide tu acceso a la beta gratis",
+      secondary: "Mira cómo funciona",
+      note: "Beta gratis · cupo limitado · hecho en México",
+      artLabel:
+        "Ilustración: Jonás, dueño de un negocio, descansa en el sillón detrás de su laptop mientras la pelota roja de Pelotaz trabaja y le llegan avisos.",
+      notifications: ["Plan de la semana listo", "Borradores listos para aprobar", "Perfil de tu marca listo"],
+    },
+    day: {
+      title: "Un día en Pelotaz",
+      lead: "Jonás tiene una taquería. Así se ve su marketing cuando la pelota hace el trabajo.",
+      beats: [
+        {
+          time: "8:00",
+          title: "Llegan los borradores del día",
+          body: "Jonás los lee en su celular y aprueba con un pulgar arriba.",
+          module: "drafts",
+        },
+        {
+          time: "13:00",
+          title: "Sale la publicación",
+          body: "Pelotaz la publica en Instagram y Facebook a la hora en que tus clientes están viendo.",
+          module: "publishing",
+        },
+        {
+          time: "17:00",
+          title: "Una reseña nueva en Google",
+          body: "Pelotaz escribe la respuesta. Jonás solo la aprueba.",
+          module: "google",
+        },
+        {
+          time: "Lunes",
+          title: "Lo que te dejó la semana",
+          body: "Un estimado en pesos de lo que vendiste gracias a Pelotaz, comparado con tus semanas normales.",
+          module: "results",
+        },
+      ],
+      seeModule: "Ver el módulo",
+    },
+    modules: {
+      title: "Todo tu marketing,",
+      titleHighlight: "un solo sistema",
+      lead: "Lo que ya funciona y lo que viene, con su estado real. Nada de promesas sin fecha disfrazadas de funciones.",
+      items: {
+        profile: {
+          title: "Perfil de tu marca",
+          body: "Pelotaz lee tu sitio y arma cómo habla tu negocio, a quién le vende y qué ofrece. Tú lo corriges antes de que se use.",
+        },
+        plan: {
+          title: "Plan semanal",
+          body: "Entre 3 y 7 publicaciones para la semana, cada una con el motivo por el que conviene.",
+        },
+        drafts: {
+          title: "Borradores con revisión de datos y precios",
+          body: "Cada texto se revisa contra tu perfil: si menciona un precio o una promoción que no tienes, no pasa.",
+        },
+        publishing: {
+          title: "Publicación automática en Instagram y Facebook",
+          body: "Apruebas y se publica solo, a la hora indicada.",
+          note: "En revisión con Meta",
+        },
+        whatsapp: {
+          title: "Aprobar todo por WhatsApp",
+          body: "Te llegan los borradores del día por WhatsApp y respondes sí, no o cámbialo.",
+        },
+        results: {
+          title: "Resultados en pesos, con tu punto de venta",
+          body: "Cuánto vendiste de más, no cuántos likes. Se conecta a tu punto de venta.",
+        },
+        google: {
+          title: "Google: perfil, reseñas, tu puntaje y 3 tareas",
+          body: "Tu perfil de Google al día, respuestas a reseñas y un puntaje de 0 a 100 con las tres tareas que más te suben.",
+        },
+        aiSearch: {
+          title: "Que te recomienden Google y ChatGPT",
+          body: "Para que cuando alguien pregunte dónde comer cerca, salga tu negocio.",
+        },
+        video: {
+          title: "Video: Reels, TikTok y Shorts con tus fotos",
+          body: "Videos cortos hechos con tus propias fotos, con voz y subtítulos en español.",
+        },
+        animatedAds: {
+          title: "Anuncios animados",
+          body: "Caricaturas cortas con tu negocio, listas para redes.",
+        },
+        customerMessages: {
+          title: "Mensajes de WhatsApp a tus clientes",
+          body: "Una promoción a quien no ha vuelto, un detalle en su cumpleaños. Solo a quien aceptó recibirlos.",
+        },
+        ads: {
+          title: "Anuncios en Meta y Google con tope de gasto",
+          body: "Apruebas un presupuesto una vez y nunca se pasa. El gasto en anuncios es tuyo y va aparte.",
+        },
+        page: {
+          title: "Página de tu negocio con menú y botón de WhatsApp",
+          body: "Una página rápida con tu menú, horario, mapa y un botón para pedir.",
+        },
+        delivery: {
+          title: "Uber Eats, Rappi y DiDi Food",
+          body: "Fotos, portadas y promociones para tus apps de entrega.",
+        },
+        report: {
+          title: "Reporte mensual por WhatsApp",
+          body: "Un mensaje al mes con lo que hizo Pelotaz y lo que te dejó.",
+        },
+      },
+    },
+    sample: {
+      title: "Así se ve",
+      titleHighlight: "tu semana",
+      lead: "Un plan de ejemplo para una taquería. Toca una publicación para ver el borrador y las revisiones que pasó.",
+      label: "Ejemplo",
+      business: "Taquería La Esquina",
+      draftLabel: "Borrador",
+      reasonLabel: "Por qué",
+      checksLabel: "Revisiones",
+      posts: [
+        {
+          day: "Lunes",
+          channel: "Instagram",
+          title: "El taco de la semana",
+          reason: "Los lunes son flojos. Una recomendación concreta da una razón para venir.",
+          draft: "Arranca la semana con el de pastor que todos piden. Con piña, cebolla y cilantro, como debe ser. 🌮",
+          checks: ["El producto existe en tu menú", "No inventa precios ni promociones", "Suena como tu negocio"],
+        },
+        {
+          day: "Miércoles",
+          channel: "Facebook",
+          title: "Promoción de mitad de semana",
+          reason: "Tu perfil tiene una promoción de miércoles. Es lo que más mueve ventas entre semana.",
+          draft: "Miércoles de 2x1 en tacos de suadero, de 5 a 9. Avísale a quien te debe unos tacos.",
+          checks: ["La promoción está en tu perfil", "El horario coincide con tu perfil", "Suena como tu negocio"],
+        },
+        {
+          day: "Viernes",
+          channel: "Instagram",
+          title: "Para llevar a la oficina",
+          reason: "Los viernes piden más para grupos. Conviene recordar que haces pedidos grandes.",
+          draft: "¿Viernes de comida en la oficina? Te armamos la orden para todo el equipo. Mándanos mensaje.",
+          checks: ["El servicio está en tu perfil", "No promete tiempos de entrega", "Suena como tu negocio"],
+        },
+      ],
+      soon: "Pronto aquí: tu propio reel en vivo y tu puntaje en Google, con los datos de tu negocio.",
+    },
+    caseStudy: {
+      title: "Caso real:",
+      titleHighlight: "Juanberto's",
+      lead: "Juanberto's California Burritos, en la Roma Sur, usa Pelotaz todos los días. Estos números salen directo del sistema.",
+      planned: "publicaciones planeadas",
+      approved: "aprobadas por el dueño",
+      published: "publicadas",
+      note: "Los resultados en ventas los mostraremos cuando tengamos suficientes semanas para medirlos bien.",
+    },
+    compare: {
+      title: "Por qué",
+      titleHighlight: "Pelotaz",
+      columns: ["Una agencia", "Tú con ChatGPT", "Pelotaz"],
+      rows: [
+        { label: "Quién hace el trabajo", values: ["La agencia, con tus juntas", "Tú, cada día", "Pelotaz. Tú apruebas"] },
+        { label: "Publica solo", values: ["Sí", "No", "Sí, con tu aprobación"] },
+        { label: "Mide", values: ["Likes y alcance", "Nada", "Ventas en pesos"] },
+        { label: "Habla tu español", values: ["Depende", "A veces suena traducido", "Sí, de México"] },
+        { label: "Cuánto te compromete", values: ["Contratos de meses", "Nada, pero tampoco hace nada", "Mes a mes, cancelas cuando quieras"] },
+        { label: "Se conecta a tu punto de venta", values: ["No", "No", "Sí"] },
+      ],
+      note: "Publicar solo y medir en pesos están en construcción. Abajo ves el estado de cada módulo.",
+    },
+    audience: {
+      title: "Para",
+      titleHighlight: "quién",
+      lead: "Empezamos con restaurantes. Si tienes otro tipo de negocio, apúntate y te avisamos.",
+      now: "Disponible hoy",
+      soon: "Muy pronto",
+      join: "Apúntame",
+      trades: [
+        { name: "Restaurantes y taquerías", ready: true },
+        { name: "Barberías y estéticas", ready: false },
+        { name: "Florerías", ready: false },
+        { name: "Inmobiliarias", ready: false },
+        { name: "Consultorios dentales", ready: false },
+      ],
+    },
+    pricing: {
+      title: "Precios",
+      lead: "La beta es gratis. Los planes pagados abren pronto; apúntate y te avisamos.",
+      toggleLabel: "Forma de pago",
+      billing: { anual: "Anual", mensual: "Mensual" },
+      perMonth: "al mes",
+      plusIva: "+ IVA",
+      launch: "Precio de lanzamiento",
+      limited: "Cupo limitado",
+      free: "Gratis",
+      yearly: (total: string) => `Se cobra una vez al año: ${total} + IVA.`,
+      saving: (amount: string) => `Ahorra ${amount} al año con el plan anual.`,
+      plans: {
+        beta: {
+          name: "Beta",
+          for: "Invitados",
+          button: "Pide tu acceso",
+          includesLabel: "Incluye",
+        },
+        starter: {
+          name: "Starter",
+          for: "Un negocio que quiere publicar sin pensar",
+          button: "Avísame cuando abra",
+          includesLabel: "Lo de la beta, más",
+        },
+        pro: {
+          name: "Pro",
+          for: "Un negocio que quiere vender más",
+          button: "Avísame cuando abra",
+          includesLabel: "Todo Starter, más",
+        },
+      },
+      features: {
+        profile: "Perfil de marca",
+        plan: "Plan semanal",
+        drafts: "Borradores",
+        publishing: "Publicación automática en Instagram y Facebook",
+        whatsapp: "Aprobación por WhatsApp",
+        google: "Google básico",
+        report: "Reporte mensual",
+        video: "Video y TikTok",
+        reviews: "Respuestas a reseñas",
+        results: "Resultados en pesos",
+        customerMessages: "Mensajes a clientes",
+        page: "Página de tu negocio",
+      },
+      payment: "Pago con tarjeta de crédito o débito.",
+      addonsTitle: "Extras",
+      addonsNote: "Precios por definir. El gasto en anuncios es tuyo y se paga aparte.",
+      addons: [
+        "Modelo de IA superior",
+        "Almacenamiento extra",
+        "Investigación de tu competencia",
+        "Paquete de video y anuncios animados",
+        "Gestión de anuncios",
+        "Sucursal o marca adicional",
+        "Mensajes de WhatsApp extra",
+      ],
+      greenMonkey: "¿Usas Green Monkey? Tienes descuento y conexión en un clic.",
+      smallPrint: "Los planes pagados todavía no están abiertos. Son precios de lanzamiento y pueden cambiar.",
+      chosen: (plan: string, billing: string) => `Te avisamos cuando abra ${plan} (${billing}).`,
+    },
+    faq: {
+      title: "Preguntas",
+      items: [
+        {
+          q: "¿Necesito sitio web?",
+          a: "Para la beta, sí: de tu sitio sale el perfil de tu marca. Pronto podrás empezar desde tu Instagram, tu ficha de Google Maps o una foto de tu menú.",
+        },
+        {
+          q: "¿Publica sin que yo lo apruebe?",
+          a: "No. Nada sale sin tu aprobación. Durante la beta copias el texto que apruebas y lo publicas tú; la publicación automática llega cuando Meta apruebe la conexión.",
+        },
+        {
+          q: "¿Cuánto tiempo me quita a la semana?",
+          a: "Lo que tardes en leer y aprobar unas cuantas publicaciones. Si algo no te gusta, pides otra versión y le dices por qué; Pelotaz lo toma en cuenta para las siguientes semanas.",
+        },
+        {
+          q: "¿Qué pasa con mis datos?",
+          a: "Los usamos solo para hacer el marketing de tu negocio. No los vendemos. El detalle está en el aviso de privacidad.",
+          privacyLink: true,
+        },
+        {
+          q: "¿En qué se diferencia de ChatGPT?",
+          a: "ChatGPT te da texto cuando se lo pides. Pelotaz conoce tu negocio, planea la semana, revisa que no invente precios ni promociones, publica y mide lo que vendiste.",
+        },
+        {
+          q: "¿Cómo puedo pagar?",
+          a: "Con tarjeta de crédito o débito, cuando abran los planes pagados. La beta no cuesta nada.",
+        },
+        {
+          q: "¿Puedo cancelar?",
+          a: "Sí. En el plan mensual cancelas cuando quieras y no se te vuelve a cobrar.",
+        },
+        {
+          q: "¿Qué pasa si pago el año y cancelo?",
+          a: "Publicaremos la regla aquí antes de abrir los planes pagados, para que la conozcas antes de pagar.",
+        },
+        {
+          q: "¿Qué incluye la beta y qué no?",
+          a: "Incluye el perfil de tu marca, el plan semanal y los borradores. La publicación automática llega más adelante. Es una beta de prueba: no cuesta y puede cambiar o fallar.",
+        },
+        {
+          q: "¿Los precios incluyen IVA?",
+          a: "No. Los precios se muestran antes de IVA, que se suma al cobrar.",
+        },
+        {
+          q: "¿Por qué se llama Pelotaz?",
+          a: "Porque con Pelotaz tu marketing se hace solo y tú puedes trabajar en pelotas desde tu casa. La pelota roja hace el trabajo.",
+        },
+      ],
+    },
+    closing: {
+      title: "Deja que la pelota",
+      titleHighlight: "trabaje.",
+      lead: "La beta es gratis y el cupo es limitado. Te escribimos cuando tu acceso esté listo.",
+    },
+    footer: {
+      contact: "hello@pelotaz.com",
+    },
+    jsonLd: {
+      description:
+        "Pelotaz planea y escribe el marketing de tu negocio: perfil de marca, plan semanal y borradores revisados. Tú solo apruebas.",
+    },
+  },
   landing: {
-    badge: "Beta privada · sin costo",
-    title: "Marketing en piloto automático para tu negocio",
-    lead: "Pelotaz lee tu sitio web, arma el perfil de tu marca y cada semana te propone las publicaciones para Instagram y Facebook. Tú revisas y apruebas.",
-    cta: "Solicitar acceso",
-    includesTitle: "Qué incluye la beta",
-    includes: [
-      {
-        title: "Perfil de tu marca",
-        body: "Cómo habla tu negocio, a quién le vende y qué ofrece, armado a partir de tu sitio. Lo revisas y lo corriges antes de que se use.",
-      },
-      {
-        title: "Plan semanal",
-        body: "Entre 3 y 7 publicaciones propuestas para la semana, cada una con su motivo.",
-      },
-      {
-        title: "Borradores",
-        body: "El texto de cada publicación, listo para que lo edites, lo apruebes o pidas otra versión.",
-      },
-    ],
-    laterTitle: "Lo que viene después",
-    later:
-      "La publicación automática en Instagram y Facebook llegará más adelante. Durante la beta copias el texto que apruebas y lo publicas tú.",
-    stepsTitle: "Cómo entras",
-    steps: [
-      "Dejas tu correo y los datos de tu negocio.",
-      "Revisamos tu solicitud. El cupo de la beta es limitado.",
-      "Te escribimos cuando tu acceso esté listo y creas tu cuenta con ese mismo correo.",
-    ],
-    terms:
-      "Es una beta de prueba: no tiene costo y puede cambiar o fallar. Necesitas un sitio web público, porque de ahí sale el perfil de tu marca.",
     formTitle: "Pide tu acceso",
     email: "Correo electrónico",
     business: "Nombre de tu negocio",
@@ -119,6 +416,8 @@ export const es = {
     revoke: "Quitar acceso",
     notify: "Avisarle por correo",
     asked: (day: string) => `Pidió acceso el ${day}`,
+    interest: (plan: string, billing: string | null) =>
+      `Quiere ${plan === "pro" ? "Pro" : "Starter"}${billing ? ` (${billing})` : ""}`,
     inviteSubject: "Tu acceso a Pelotaz está listo",
     inviteBody: (business: string, url: string, email: string) =>
       `Hola:\n\nYa puedes probar Pelotaz con ${business}. Crea tu cuenta aquí usando este mismo correo (${email}):\n\n${url}\n\nEs una beta privada y sin costo: incluye el perfil de tu marca, el plan semanal y los borradores de tus publicaciones. La publicación automática llegará más adelante.\n\nCualquier duda, responde a este correo.`,

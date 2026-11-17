@@ -11,6 +11,7 @@ import { Logo } from "@/components/logo";
 import { es } from "@/i18n/es";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.pelotaz.com"),
   title: { default: es.app.name, template: `%s | ${es.app.name}` },
   description: es.app.tagline,
 };
@@ -34,13 +35,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
         </header>
         {children}
-        <footer className="mx-auto flex max-w-4xl gap-5 px-5 pb-10 pt-6 text-sm text-tinta-suave">
+        <footer className="mx-auto flex max-w-4xl flex-wrap gap-x-5 gap-y-2 px-5 pb-10 pt-6 text-sm text-tinta-suave">
           <Link href="/privacidad" className="underline-offset-4 hover:underline">
             Aviso de privacidad
           </Link>
           <Link href="/terminos" className="underline-offset-4 hover:underline">
             Términos
           </Link>
+          <a href={`mailto:${es.marketing.footer.contact}`} className="underline-offset-4 hover:underline">
+            {es.marketing.footer.contact}
+          </a>
         </footer>
         <Analytics />
       </body>

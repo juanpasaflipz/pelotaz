@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { track } from "@vercel/analytics";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { requestAccess, type RequestAccessState } from "@/app/acceso/actions";
 import { BallMark } from "@/components/logo";
+import { PLAN_INTEREST_EVENT, type PlanInterest } from "@/components/marketing/plan-interest";
 import { es } from "@/i18n/es";
 
 const initial: RequestAccessState = { error: null, sentTo: null, email: "", businessName: "", website: "" };
@@ -20,6 +22,19 @@ const FIELD_OF_ERROR = {
 export function AccessRequestForm() {
   const [state, action, pending] = useActionState(requestAccess, initial);
   const t = es.landing;
+  const [interest, setInterest] = useState<PlanInterest | null>(null);
+  const started = useRef(false);
+
+  // A paid plan's button on the same page says which plan this request is about.
+  useEffect(() => {
+    const listen = (event: Event) => setInterest((event as CustomEvent<PlanInterest>).detail);
+    window.addEventListener(PLAN_INTEREST_EVENT, listen);
+    return () => window.removeEventListener(PLAN_INTEREST_EVENT, listen);
+  }, []);
+
+  useEffect(() => {
+    if (state.sentTo) track("form_sent", interest ? { plan: interest.plan, billing: interest.billing } : {});
+  }, [state.sentTo, interest]);
 
   if (state.sentTo) {
     return (
@@ -37,7 +52,25 @@ export function AccessRequestForm() {
   const invalid = (name: string) => (wrong === name ? { "aria-invalid": true, "aria-describedby": "access-error" } : {});
 
   return (
-    <form action={action} className="mt-6 grid max-w-md gap-4">
+    <form
+      action={action}
+      className="mt-6 grid max-w-md gap-4"
+      onFocus={() => {
+        if (started.current) return;
+        started.current = true;
+        track("form_start");
+      }}
+    >
+      {interest && (
+        <p className="rounded bg-raya px-3 py-2 font-semibold text-marca-profunda">
+          {es.marketing.pricing.chosen(
+            es.marketing.pricing.plans[interest.plan].name,
+            es.marketing.pricing.billing[interest.billing].toLowerCase(),
+          )}
+        </p>
+      )}
+      <input type="hidden" name="plan_interest" value={interest?.plan ?? ""} />
+      <input type="hidden" name="billing_interest" value={interest?.billing ?? ""} />
       <div>
         <label htmlFor="access-email" className="mb-1.5 block font-semibold">
           {t.email}

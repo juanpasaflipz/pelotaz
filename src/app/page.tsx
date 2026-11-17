@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -9,6 +10,19 @@ import { StatusLabel } from "@/components/status-label";
 import { es } from "@/i18n/es";
 import { getAccessOrSetup } from "@/lib/auth/session";
 import { listBrands } from "@/lib/data";
+
+export const metadata: Metadata = {
+  title: { absolute: `${es.app.name}: ${es.marketing.hero.titleBefore} ${es.marketing.hero.titleHighlight}` },
+  description: es.marketing.hero.lead,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "es_MX",
+    siteName: es.app.name,
+    title: `${es.marketing.hero.titleBefore} ${es.marketing.hero.titleHighlight}`,
+    description: es.marketing.hero.lead,
+  },
+};
 
 // Creating a brand can run the crawl in-process in local development.
 export const maxDuration = 300;
