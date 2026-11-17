@@ -24,6 +24,7 @@ export default function proxy(request: NextRequest) {
       "/beta",
       "/precios",
       "/empieza",
+      "/jonas",
       "/opengraph-image",
       // The reel the public page plays (public/video).
       "/video",

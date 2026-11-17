@@ -10,12 +10,15 @@ export const shareImageSize = { width: 1200, height: 630 };
 const RED = "#f40a0a";
 const MARCA = "#dc0b0b";
 
-/** The preview WhatsApp, Facebook and others show when the public page is shared. */
-export async function shareImage(outfit: Outfit = "none") {
+type ShareText = { before: string; highlight: string; note: string };
+
+/** The preview WhatsApp, Facebook and others show when a public page is shared. */
+export async function shareImage(outfit: Outfit = "none", text?: ShareText) {
   const nunito = await readFile(
     join(process.cwd(), "node_modules/@fontsource/nunito/files/nunito-latin-800-normal.woff"),
   );
-  const t = es.marketing.hero;
+  const hero = es.marketing.hero;
+  const t = text ?? { before: hero.titleBefore, highlight: hero.titleHighlight, note: hero.note };
   return new ImageResponse(
     <div
       style={{
@@ -57,8 +60,8 @@ export async function shareImage(outfit: Outfit = "none") {
             color: "#1a1a1a",
           }}
         >
-          <span>{t.titleBefore}</span>
-          <span style={{ color: MARCA }}>{t.titleHighlight}</span>
+          <span>{t.before}</span>
+          <span style={{ color: MARCA }}>{t.highlight}</span>
         </div>
         <div style={{ marginTop: 28, fontSize: 32, color: "#505050" }}>{t.note}</div>
       </div>
