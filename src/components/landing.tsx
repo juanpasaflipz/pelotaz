@@ -579,6 +579,15 @@ function JsonLd() {
     },
     {
       "@context": "https://schema.org",
+      "@type": "Organization",
+      name: es.app.name,
+      url: "https://www.pelotaz.com/",
+      logo: "https://www.pelotaz.com/icon.svg",
+      email: t.footer.contact,
+      sameAs: t.footer.social.map((link) => link.href),
+    },
+    {
+      "@context": "https://schema.org",
       "@type": "FAQPage",
       mainEntity: t.faq.items.map((item) => ({
         "@type": "Question",

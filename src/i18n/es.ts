@@ -438,6 +438,10 @@ export const es = {
       art: "Ilustración: Jonás descansa en el sillón.",
     },
     meta: {
+      /** What Google shows. The headline stays as the title people see when the link is shared. */
+      title: "Pelotaz: marketing en piloto automático para restaurantes",
+      description:
+        "Pelotaz planea y escribe las publicaciones de Instagram y Facebook de tu restaurante o negocio. Tú solo apruebas. Beta gratis, hecho en México.",
       /** The title WhatsApp shows when someone shares pelotaz.com/beta. */
       betaTitle: "Beta gratis de Pelotaz",
       betaDescription: "Pelotaz planea y escribe el marketing de tu negocio. Tú solo apruebas. Cupo limitado.",

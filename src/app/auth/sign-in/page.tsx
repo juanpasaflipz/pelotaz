@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { AuthForm } from "@/components/auth-form";
 import { es } from "@/i18n/es";
 
-export const metadata: Metadata = { title: es.auth.signIn };
+export const metadata: Metadata = { title: es.auth.signIn, robots: { index: false, follow: true } };
 
 export default function Page({ searchParams }: PageProps<"/auth/sign-in">) {
   return (

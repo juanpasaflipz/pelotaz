@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { ResetWithToken } from "@/components/reset-password";
 import { es } from "@/i18n/es";
 
-export const metadata: Metadata = { title: es.auth.resetTitle };
+export const metadata: Metadata = { title: es.auth.resetTitle, robots: { index: false, follow: true } };
 
 /** Landing page for an emailed reset link (`?token=`). Without a token, start over. */
 export default function ResetPasswordPage({ searchParams }: PageProps<"/auth/restablecer">) {
