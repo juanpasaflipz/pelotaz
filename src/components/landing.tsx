@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { AccessRequestForm } from "@/components/access-request-form";
 import { BallMark } from "@/components/logo";
 import { CaseStudy } from "@/components/marketing/case-study";
+import { DayStory } from "@/components/marketing/day-story";
 import { JonasOnCouch } from "@/components/marketing/jonas";
 import type { LandingEntry } from "@/components/marketing/metadata";
 import { MODULES, statusOf, type ModuleId } from "@/components/marketing/modules";
@@ -83,7 +84,13 @@ function SectionNav() {
   ] as const;
   return (
     <nav aria-label={t.nav.label} className="sticky top-0 z-20 border-b border-borde bg-raya/95 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center gap-4 px-5 py-2">
+      <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-5 py-2">
+        {/* The ball rolls along the bottom of the bar as the page scrolls: the page's guide. */}
+        <div aria-hidden className="nav-track">
+          <span className="nav-ball">
+            <BallMark className="size-3.5" />
+          </span>
+        </div>
         <a href="#inicio" aria-label={es.app.name} className="hidden flex-none sm:block">
           <BallMark className="size-6" />
         </a>
@@ -131,11 +138,12 @@ function Hero() {
         </div>
         <div className="relative">
           <JonasOnCouch label={t.hero.artLabel} className="h-auto w-full" />
-          <ul aria-hidden className="mt-3 grid justify-items-start gap-2 sm:absolute sm:left-0 sm:top-0 sm:mt-0">
-            {t.hero.notifications.map((note) => (
+          <ul aria-hidden className="mt-3 grid justify-items-start gap-2 sm:absolute sm:right-0 sm:top-[30%] sm:mt-0 sm:justify-items-end">
+            {t.hero.notifications.map((note, index) => (
               <li
                 key={note}
-                className="flex items-center gap-2 rounded-lg bg-raya px-3 py-1.5 text-xs font-semibold shadow-md sm:text-sm"
+                style={{ "--i": index } as CSSProperties}
+                className="hero-note flex items-center gap-2 rounded-lg bg-raya px-3 py-1.5 text-xs font-semibold shadow-md sm:text-sm"
               >
                 <BallMark className="size-4" />
                 {note}
@@ -154,7 +162,7 @@ function Day() {
       <div className="mx-auto max-w-5xl px-5 py-14">
         <h2 className="display text-4xl sm:text-5xl">{t.day.title}</h2>
         <p className="mt-3 max-w-prose text-lg">{t.day.lead}</p>
-        <ol className="-mx-5 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+        <ol className="day-cards -mx-5 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
           {t.day.beats.map((beat) => {
             const moduleId = beat.module as ModuleId;
             const status = statusOf(moduleId);
@@ -174,6 +182,7 @@ function Day() {
           })}
         </ol>
       </div>
+      <DayStory />
     </section>
   );
 }
