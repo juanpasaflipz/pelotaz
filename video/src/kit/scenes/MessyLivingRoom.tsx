@@ -1,5 +1,6 @@
 import React from "react";
 import { RED } from "../Caption";
+import { FONT } from "../font";
 
 // The whole room is one wide strip; the camera pans across it.
 export const WORLD_W = 3000;
@@ -62,7 +63,7 @@ const Sticky: React.FC<{ x: number; y: number; rot: number; text: string; color?
       x={0}
       y={20}
       textAnchor="middle"
-      fontFamily="Inter"
+      fontFamily={FONT}
       fontWeight={700}
       fontSize={26}
       fill="#3B3B3B"
@@ -156,7 +157,7 @@ export const Room: React.FC<{ frame: number; revealAt: number; winkAt: number; o
         ))}
         <rect x={820} y={1012} width={120} height={38} fill="#C9B79C" />
         <rect x={735} y={1150} width={190} height={65} fill="#AFA08A" />
-        <text x={830} y={1192} textAnchor="middle" fontFamily="Inter" fontWeight={800} fontSize={22} fill="#4A4036">
+        <text x={830} y={1192} textAnchor="middle" fontFamily={FONT} fontWeight={800} fontSize={22} fill="#4A4036">
           MARKETING 101
         </text>
       </g>

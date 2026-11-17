@@ -1,10 +1,11 @@
 import React from "react";
+import { FONT } from "./font";
 import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 
 // Text segments; a segment marked `brand` is drawn in Pelotaz red.
 export type Seg = { text: string; brand?: boolean };
 
-export const RED = "var(--brand, #E3262B)";
+export const RED = "var(--brand, #F40A0A)";
 
 export const Caption: React.FC<{ segs: Seg[]; from: number; to: number; size?: number }> = ({
   segs,
@@ -31,7 +32,7 @@ export const Caption: React.FC<{ segs: Seg[]; from: number; to: number; size?: n
     >
       <span
         style={{
-          fontFamily: "Inter",
+          fontFamily: FONT,
           fontWeight: 900,
           fontSize: size,
           lineHeight: 1.42,

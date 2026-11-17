@@ -1,4 +1,5 @@
 import React from "react";
+import { FONT } from "./font";
 import {
   AbsoluteFill,
   Audio,
@@ -45,7 +46,7 @@ const Notification: React.FC<{ brand: string; text: string; at: number; y: numbe
         alignItems: "center",
         gap: 16,
         transform: `translateX(${(1 - s) * -460}px)`,
-        fontFamily: "Inter",
+        fontFamily: FONT,
       }}
     >
       <div
@@ -92,7 +93,7 @@ const BallDropEndCard: React.FC<{ brand: string; tagline: string; cta: string; s
   const tag = spring({ frame: frame - 34, fps, config: { damping: 15 } });
   const ctaS = spring({ frame: frame - 48, fps, config: { damping: 12 } });
   return (
-    <AbsoluteFill style={{ background: RED, alignItems: "center", fontFamily: "Inter" }}>
+    <AbsoluteFill style={{ background: RED, alignItems: "center", fontFamily: FONT }}>
       <svg width={1080} height={1920} style={{ position: "absolute" }}>
         <g transform={`translate(540 ${ballY}) scale(${1 / squash} ${squash})`}>
           <Ball cx={0} cy={0} r={150} fill="#fff" seam={RED} />
