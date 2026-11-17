@@ -23,6 +23,7 @@ export default function proxy(request: NextRequest) {
       // Short addresses of the public page, and the image WhatsApp and Facebook show when it is shared.
       "/beta",
       "/precios",
+      "/empieza",
       "/opengraph-image",
       // The reel the public page plays (public/video).
       "/video",

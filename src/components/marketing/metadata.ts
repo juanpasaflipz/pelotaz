@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { es } from "@/i18n/es";
 
-export type LandingEntry = "root" | "beta" | "precios";
+export type LandingEntry = "root" | "beta" | "precios" | "empieza";
 
 const t = es.marketing;
 const headline = `${t.hero.titleBefore} ${t.hero.titleHighlight}`;
@@ -24,7 +24,17 @@ export function landingMetadata(entry: LandingEntry): Metadata {
       title: ogTitle,
       description: entry === "beta" ? t.meta.betaDescription : t.hero.lead,
       // Named here because a page's own openGraph replaces the inherited image.
-      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: t.hero.artLabel }],
+      // /empieza, where paid ads point, gets the clothed version (Meta reviews the page and its preview).
+      images: [
+        {
+          url: entry === "empieza" ? "/empieza/opengraph-image" : "/opengraph-image",
+          width: 1200,
+          height: 630,
+          alt: t.hero.artLabel,
+        },
+      ],
     },
+    // Paid traffic only: kept out of search results.
+    ...(entry === "empieza" ? { robots: { index: false, follow: true } } : {}),
   };
 }

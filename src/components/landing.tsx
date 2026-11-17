@@ -10,7 +10,8 @@ import {
   HeroReelProvider,
   HeroReelSlot,
 } from "@/components/marketing/hero-reel";
-import { JonasOnCouch } from "@/components/marketing/jonas";
+import { CastMember, type Trade } from "@/components/marketing/cast";
+import { JonasOnCouch, type Outfit } from "@/components/marketing/jonas";
 import type { LandingEntry } from "@/components/marketing/metadata";
 import {
   MODULES,
@@ -37,21 +38,23 @@ const t = es.marketing;
  * requests as coming from there; /precios opens at pricing.
  */
 export function Landing({ entry }: { entry: LandingEntry }) {
+  // /empieza (paid ads) shows everyone dressed.
+  const outfit: Outfit = entry === "empieza" ? "pyjamas" : "none";
   return (
     <main>
       {entry === "beta" && <ScrollOnLoad to="acceso" />}
       {entry === "precios" && <ScrollOnLoad to="precios" />}
       <JsonLd />
       <SectionNav />
-      <Hero />
-      <Day />
+      <Hero outfit={outfit} />
+      <Day outfit={outfit} />
       <Modules />
       <TryIt />
       <Suspense fallback={null}>
         <CaseStudy />
       </Suspense>
       <Compare />
-      <Audience />
+      <Audience outfit={outfit} />
       <section id="precios" className="scroll-mt-16 bg-cal">
         <div className="mx-auto max-w-5xl px-5 py-14">
           <h2 className="display text-4xl sm:text-5xl">{t.pricing.title}</h2>
@@ -81,7 +84,9 @@ export function Landing({ entry }: { entry: LandingEntry }) {
         </div>
       </section>
       <Faq />
-      <Closing source={entry === "beta" ? "beta" : undefined} />
+      <Closing
+        source={entry === "beta" || entry === "empieza" ? entry : undefined}
+      />
     </main>
   );
 }
@@ -141,7 +146,7 @@ function SectionNav() {
   );
 }
 
-function Hero() {
+function Hero({ outfit }: { outfit: Outfit }) {
   return (
     <section id="inicio" className="bg-raya">
       <HeroReelProvider>
@@ -174,7 +179,11 @@ function Hero() {
             </p>
           </div>
           <HeroReelSlot>
-            <JonasOnCouch label={t.hero.artLabel} className="h-auto w-full" />
+            <JonasOnCouch
+              label={t.hero.artLabel}
+              className="h-auto w-full"
+              outfit={outfit}
+            />
             <ul
               aria-hidden
               className="mt-3 grid justify-items-start gap-2 sm:absolute sm:right-0 sm:top-[30%] sm:mt-0 sm:justify-items-end"
@@ -197,7 +206,7 @@ function Hero() {
   );
 }
 
-function Day() {
+function Day({ outfit }: { outfit: Outfit }) {
   return (
     <section id="como-funciona" className="scroll-mt-16 bg-cal">
       <div className="mx-auto max-w-5xl px-5 py-14">
@@ -229,7 +238,7 @@ function Day() {
           })}
         </ol>
       </div>
-      <DayStory />
+      <DayStory outfit={outfit} />
     </section>
   );
 }
@@ -432,7 +441,7 @@ function Compare() {
   );
 }
 
-function Audience() {
+function Audience({ outfit }: { outfit: Outfit }) {
   const a = t.audience;
   return (
     <section className="bg-raya">
@@ -443,10 +452,21 @@ function Audience() {
           {a.trades.map((trade) => (
             <li
               key={trade.name}
-              className="flex items-center justify-between gap-3 rounded-xl border-2 border-borde p-4"
+              className="flex items-center gap-3 rounded-xl border-2 border-borde p-4"
             >
-              <span>
-                <span className="display block text-lg">{trade.name}</span>
+              <CastMember
+                trade={trade.character as Trade}
+                label={trade.who}
+                outfit={outfit}
+                className="size-20 flex-none"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="display block text-lg leading-tight">
+                  {trade.name}
+                </span>
+                <span className="block text-sm text-tinta-suave">
+                  {trade.who}
+                </span>
                 <span
                   className={`text-sm font-semibold ${trade.ready ? "text-ok" : "text-tinta-suave"}`}
                 >
@@ -510,7 +530,7 @@ function Faq() {
   );
 }
 
-function Closing({ source }: { source?: "beta" }) {
+function Closing({ source }: { source?: "beta" | "empieza" }) {
   return (
     <section id="acceso" className="wall scroll-mt-12">
       <div className="mx-auto grid max-w-5xl gap-8 px-5 pb-16 pt-12 md:grid-cols-2">

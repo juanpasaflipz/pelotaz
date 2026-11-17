@@ -264,12 +264,13 @@ export const es = {
       now: "Disponible hoy",
       soon: "Muy pronto",
       join: "Apúntame",
+      /** Each trade's owner, drawn in src/components/marketing/cast.tsx. Names proposed 2026-11-17. */
       trades: [
-        { name: "Restaurantes y taquerías", ready: true },
-        { name: "Barberías y estéticas", ready: false },
-        { name: "Florerías", ready: false },
-        { name: "Inmobiliarias", ready: false },
-        { name: "Consultorios dentales", ready: false },
+        { name: "Restaurantes y taquerías", ready: true, character: "taquera", who: "Lupita, taquera" },
+        { name: "Barberías y estéticas", ready: false, character: "barbero", who: "Toño, barbero" },
+        { name: "Florerías", ready: false, character: "florista", who: "Rosa, florista" },
+        { name: "Inmobiliarias", ready: false, character: "inmobiliaria", who: "Memo, agente inmobiliario" },
+        { name: "Consultorios dentales", ready: false, character: "dentista", who: "La doctora Sonia, dentista" },
       ],
     },
     pricing: {
@@ -395,6 +396,13 @@ export const es = {
         { label: "Instagram", href: "https://www.instagram.com/hazlo.en.pelotaz/" },
         { label: "Facebook", href: "https://www.facebook.com/compraenpelotaz" },
       ],
+    },
+    notFound: {
+      title: "Esta página se fue",
+      titleHighlight: "en pelotas.",
+      lead: "No la encontramos. Jonás tampoco la buscó: estaba descansando.",
+      home: "Ir al inicio",
+      art: "Ilustración: Jonás descansa en el sillón.",
     },
     meta: {
       /** The title WhatsApp shows when someone shares pelotaz.com/beta. */

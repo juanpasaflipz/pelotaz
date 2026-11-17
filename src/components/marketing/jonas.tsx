@@ -7,6 +7,9 @@
 const SKIN = "#E9B48C";
 const SKIN_D = "#C98A63";
 const LINE = "#5B3424";
+const CLOTH_D = "#D8CFBF";
+
+export type Outfit = "none" | "pyjamas";
 
 /** `red` is the theme colour on the page; pass a literal where CSS variables do not resolve (the share image). */
 export function JonasOnCouch({
@@ -14,21 +17,38 @@ export function JonasOnCouch({
   label,
   red = "var(--color-bola)",
   width,
+  outfit = "none",
 }: {
   className?: string;
   label: string;
   red?: string;
   /** Pixels; for the share image, where CSS sizing does not apply. */
   width?: number;
+  /** "pyjamas" = the approved reel's striped pyjamas, for /empieza and anything Meta reviews. */
+  outfit?: Outfit;
 }) {
   const RED = red;
+  const pj = outfit === "pyjamas";
+  const cloth = pj ? "url(#jonas-pyjama)" : SKIN;
+  const clothEdge = pj ? CLOTH_D : SKIN_D;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="1920 600 1080 1040"
       width={width}
       height={width ? Math.round((width * 1040) / 1080) : undefined}
-      className={className} role="img" aria-label={label}>
+      className={className}
+      role="img"
+      aria-label={label}
+    >
+      {pj && (
+        <defs>
+          <pattern id="jonas-pyjama" width={30} height={30} patternUnits="userSpaceOnUse">
+            <rect width={30} height={30} fill="#FBF7EF" />
+            <rect width={10} height={30} fill={RED} />
+          </pattern>
+        </defs>
+      )}
       {/* couch */}
       <rect x={1980} y={830} width={960} height={360} rx={60} fill="#4F6F8F" />
       <rect x={1955} y={1000} width={150} height={330} rx={50} fill="#5A7C9D" />
@@ -38,25 +58,38 @@ export function JonasOnCouch({
       <rect x={2105} y={950} width={170} height={170} rx={34} fill="#E8B34A" transform="rotate(-12 2190 1035)" />
 
       {/* arms behind head */}
-      {[
-        "M 2350 910 L 2262 725 L 2400 705",
-        "M 2570 910 L 2658 725 L 2520 705",
-      ].map((d) => (
+      {["M 2350 910 L 2262 725 L 2400 705", "M 2570 910 L 2658 725 L 2520 705"].map((d) => (
         <g key={d}>
-          <path d={d} stroke={SKIN_D} strokeWidth={70} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d={d} stroke={SKIN} strokeWidth={60} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={d} stroke={clothEdge} strokeWidth={70} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={d} stroke={cloth} strokeWidth={60} fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </g>
       ))}
       {/* torso */}
       <path
         d="M 2330 892 Q 2460 862 2590 892 L 2582 1010 Q 2590 1110 2560 1180 L 2360 1180 Q 2330 1110 2338 1010 Z"
-        fill={SKIN}
-        stroke={SKIN_D}
+        fill={cloth}
+        stroke={clothEdge}
         strokeWidth={5}
       />
-      <path d="M 2360 1060 Q 2460 1120 2560 1060" stroke={SKIN_D} strokeWidth={4} fill="none" opacity={0.6} />
-      <circle cx={2410} cy={965} r={7} fill={SKIN_D} />
-      <circle cx={2510} cy={965} r={7} fill={SKIN_D} />
+      {pj ? (
+        <>
+          <path d="M 2422 876 L 2460 948 L 2498 876 Z" fill={SKIN} />
+          <path
+            d="M 2408 874 L 2460 956 L 2512 874"
+            stroke={CLOTH_D}
+            strokeWidth={10}
+            fill="none"
+            strokeLinejoin="round"
+          />
+          <circle cx={2460} cy={970} r={8} fill="#fff" stroke={CLOTH_D} strokeWidth={3} />
+        </>
+      ) : (
+        <>
+          <path d="M 2360 1060 Q 2460 1120 2560 1060" stroke={SKIN_D} strokeWidth={4} fill="none" opacity={0.6} />
+          <circle cx={2410} cy={965} r={7} fill={SKIN_D} />
+          <circle cx={2510} cy={965} r={7} fill={SKIN_D} />
+        </>
+      )}
       {/* neck + head */}
       <rect x={2430} y={840} width={60} height={60} fill={SKIN} />
       <g transform="rotate(-6 2460 800)">
@@ -88,7 +121,7 @@ export function JonasOnCouch({
       </g>
       {/* shins */}
       {[2405, 2485].map((x) => (
-        <rect key={x} x={x} y={1225} width={58} height={95} fill={SKIN} stroke={SKIN_D} strokeWidth={4} />
+        <rect key={x} x={x} y={1225} width={58} height={95} fill={cloth} stroke={clothEdge} strokeWidth={4} />
       ))}
       {/* laptop: the lid covers what needs covering */}
       <rect x={2262} y={1228} width={396} height={20} rx={10} fill="#C7CBD1" />
