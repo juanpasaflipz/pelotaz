@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
 import { es } from "@/i18n/es";
 
-export const metadata: Metadata = { title: es.auth.signUp };
+export const metadata: Metadata = { title: es.auth.signUp, robots: { index: false, follow: true } };
 
 export default function Page() {
   return (

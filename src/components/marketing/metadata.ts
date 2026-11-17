@@ -13,8 +13,8 @@ const headline = `${t.hero.titleBefore} ${t.hero.titleHighlight}`;
 export function landingMetadata(entry: LandingEntry): Metadata {
   const ogTitle = entry === "beta" ? t.meta.betaTitle : headline;
   return {
-    title: { absolute: entry === "beta" ? t.meta.betaTitle : `${es.app.name}: ${headline}` },
-    description: t.hero.lead,
+    title: { absolute: entry === "beta" ? t.meta.betaTitle : t.meta.title },
+    description: t.meta.description,
     alternates: { canonical: "/" },
     openGraph: {
       type: "website",

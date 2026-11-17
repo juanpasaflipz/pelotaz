@@ -45,6 +45,7 @@ export default function proxy(request: NextRequest) {
   return guard(request);
 }
 
+// robots.txt and sitemap.xml are skipped too: crawlers must get the files, not the sign-in page.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|_vercel|icon.svg|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|_vercel|icon.svg|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

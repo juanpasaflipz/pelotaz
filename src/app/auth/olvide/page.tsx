@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ResetWithCode } from "@/components/reset-password";
 import { es } from "@/i18n/es";
 
-export const metadata: Metadata = { title: es.auth.resetTitle };
+export const metadata: Metadata = { title: es.auth.resetTitle, robots: { index: false, follow: true } };
 
 export default function ForgotPasswordPage() {
   return (
