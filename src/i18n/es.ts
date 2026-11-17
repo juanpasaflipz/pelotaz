@@ -437,6 +437,23 @@ export const es = {
       home: "Ir al inicio",
       art: "Ilustración: Jonás descansa en el sillón.",
     },
+    /** Shared words of the three public guides; the guides' own copy is in src/i18n/guias.ts. */
+    guides: {
+      eyebrow: "Guía de Pelotaz",
+      ctaTitle: "¿Quieres que esto se haga solo?",
+      ctaLead: "Pelotaz planea y escribe el marketing de tu negocio. Tú solo apruebas. La beta es gratis y el cupo es limitado.",
+      cta: "Pide tu acceso a la beta gratis",
+      moreLabel: "Más guías",
+      rowTitle: "Guías para restaurantes",
+      reviews: {
+        title: "Respuestas para copiar y adaptar",
+        lead: "Lo que está entre corchetes es para que lo cambies por lo tuyo. Cambia también algo de la reseña para que se note que la leíste.",
+      },
+      plan: {
+        title: "Tu plan de cuatro semanas",
+        reasonLabel: "Por qué:",
+      },
+    },
     meta: {
       /** What Google shows. The headline stays as the title people see when the link is shared. */
       title: "Pelotaz: marketing en piloto automático para restaurantes",

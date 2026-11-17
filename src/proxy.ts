@@ -25,6 +25,10 @@ export default function proxy(request: NextRequest) {
       "/precios",
       "/empieza",
       "/jonas",
+      // The public guides (src/i18n/guias.ts).
+      "/marketing-para-restaurantes",
+      "/respuestas-a-resenas-de-google",
+      "/que-publicar-en-instagram-restaurante",
       "/opengraph-image",
       // The reel the public page plays (public/video).
       "/video",
