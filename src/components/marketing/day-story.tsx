@@ -1,6 +1,6 @@
 import { BallMark } from "@/components/logo";
 import { es } from "@/i18n/es";
-import { JonasOnCouch } from "./jonas";
+import { JonasOnCouch, type Outfit } from "./jonas";
 import { statusOf, type ModuleId } from "./modules";
 import { StatusChip } from "./status-chip";
 
@@ -17,19 +17,21 @@ const range = (from: number, to: number) => `contain ${from.toFixed(1)}% contain
  * owner has not asked for less motion; everyone else gets the cards in
  * landing.tsx. See `.day-story` in globals.css.
  */
-export function DayStory() {
+export function DayStory({ outfit = "none" }: { outfit?: Outfit }) {
   return (
     <div className="day-story" aria-label={t.storyLabel}>
       <div className="day-sticky mx-auto grid max-w-5xl grid-cols-[1fr_320px] items-center gap-12 px-5">
         <div>
           <div className="relative">
-            <JonasOnCouch label="" className="h-auto w-full max-w-md" />
+            <JonasOnCouch label="" className="h-auto w-full max-w-md" outfit={outfit} />
             {t.beats.map((beat, index) => (
               <span
                 key={beat.time}
                 aria-hidden
                 className="day-only absolute left-[52%] top-0 rounded-full bg-raya px-3 py-1 text-3xl shadow-md"
-                style={{ animationRange: range(index * SLICE, (index + 1) * SLICE) }}
+                style={{
+                  animationRange: range(index * SLICE, (index + 1) * SLICE),
+                }}
               >
                 {beat.mood}
               </span>
@@ -43,7 +45,9 @@ export function DayStory() {
                 <div
                   key={beat.time}
                   className={`${last ? "day-in" : "day-only"} absolute inset-0`}
-                  style={{ animationRange: range(index * SLICE, last ? index * SLICE + 6 : (index + 1) * SLICE) }}
+                  style={{
+                    animationRange: range(index * SLICE, last ? index * SLICE + 6 : (index + 1) * SLICE),
+                  }}
                 >
                   <p className="display text-4xl text-marca">{beat.time}</p>
                   <h3 className="display mt-1 text-2xl">{beat.title}</h3>
