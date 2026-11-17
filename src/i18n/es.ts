@@ -331,6 +331,10 @@ export const es = {
     },
     footer: {
       contact: "hello@pelotaz.com",
+      social: [
+        { label: "Instagram", href: "https://www.instagram.com/hazlo.en.pelotaz/" },
+        { label: "Facebook", href: "https://www.facebook.com/compraenpelotaz" },
+      ],
     },
     jsonLd: {
       description:

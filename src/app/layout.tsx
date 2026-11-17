@@ -45,6 +45,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <a href={`mailto:${es.marketing.footer.contact}`} className="underline-offset-4 hover:underline">
             {es.marketing.footer.contact}
           </a>
+          {es.marketing.footer.social.map((link) => (
+            <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
+              {link.label}
+            </a>
+          ))}
         </footer>
         <Analytics />
       </body>

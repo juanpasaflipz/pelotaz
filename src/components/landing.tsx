@@ -378,6 +378,7 @@ function JsonLd() {
       "@type": "SoftwareApplication",
       name: es.app.name,
       url: "https://www.pelotaz.com/",
+      sameAs: t.footer.social.map((link) => link.href),
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       inLanguage: "es-MX",
