@@ -78,6 +78,16 @@ function Group({ title, rows }: { title: string; rows: AccessRequest[] }) {
                   {" · "}
                   {es.admin.asked(day.format(request.createdAt))}
                 </p>
+                {(request.source || request.utm) && (
+                  <p className="truncate text-sm text-tinta-suave">
+                    {es.admin.origin(request.source, request.utm)}
+                  </p>
+                )}
+                {request.planInterest && (
+                  <p className="text-sm font-semibold text-marca-profunda">
+                    {es.admin.interest(request.planInterest, request.billingInterest)}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 {request.status === "approved" && (

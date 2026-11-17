@@ -138,3 +138,22 @@ textarea.field {
     transform: translateY(0.1rem) scaleY(0.88);
   }
 }
+
+/* The ball on Jonás's laptop in the public page's hero: the one thing working. */
+.hero-ball {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-ball {
+    animation: hero-bounce 0.8s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+  }
+}
+@keyframes hero-bounce {
+  from {
+    transform: translateY(-38%);
+  }
+  to {
+    transform: translateY(0) scaleY(0.9);
+  }
+}

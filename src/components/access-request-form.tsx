@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { requestAccess, type RequestAccessState } from "@/app/acceso/actions";
 import { BallMark } from "@/components/logo";
+import { trackEvent } from "@/components/marketing/analytics";
+import { PLAN_INTEREST_EVENT, type PlanInterest } from "@/components/marketing/plan-interest";
 import { es } from "@/i18n/es";
 
 const initial: RequestAccessState = { error: null, sentTo: null, email: "", businessName: "", website: "" };
@@ -16,10 +18,32 @@ const FIELD_OF_ERROR = {
   busy: null,
 } as const;
 
-/** The public form that asks for a place in the private beta. */
-export function AccessRequestForm() {
+const noSubscribe = () => () => {};
+
+function utmFromAddress(): string {
+  const found = [...new URLSearchParams(window.location.search)].filter(([key]) => key.startsWith("utm_"));
+  return found.length > 0 ? JSON.stringify(Object.fromEntries(found)) : "";
+}
+
+/** The public form that asks for a place in the private beta. `source` is the short address the page was opened at. */
+export function AccessRequestForm({ source }: { source?: "beta" | "empieza" }) {
   const [state, action, pending] = useActionState(requestAccess, initial);
   const t = es.landing;
+  const [interest, setInterest] = useState<PlanInterest | null>(null);
+  const started = useRef(false);
+  // The visit's utm_* parameters, sent with the request. Empty on the server.
+  const utm = useSyncExternalStore(noSubscribe, utmFromAddress, () => "");
+
+  // A paid plan's button on the same page says which plan this request is about.
+  useEffect(() => {
+    const listen = (event: Event) => setInterest((event as CustomEvent<PlanInterest>).detail);
+    window.addEventListener(PLAN_INTEREST_EVENT, listen);
+    return () => window.removeEventListener(PLAN_INTEREST_EVENT, listen);
+  }, []);
+
+  useEffect(() => {
+    if (state.sentTo) trackEvent("form_sent", interest ? { plan: interest.plan, billing: interest.billing } : {});
+  }, [state.sentTo, interest]);
 
   if (state.sentTo) {
     return (
@@ -37,7 +61,27 @@ export function AccessRequestForm() {
   const invalid = (name: string) => (wrong === name ? { "aria-invalid": true, "aria-describedby": "access-error" } : {});
 
   return (
-    <form action={action} className="mt-6 grid max-w-md gap-4">
+    <form
+      action={action}
+      className="mt-6 grid max-w-md gap-4"
+      onFocus={() => {
+        if (started.current) return;
+        started.current = true;
+        trackEvent("form_start");
+      }}
+    >
+      {interest && (
+        <p className="rounded bg-raya px-3 py-2 font-semibold text-marca-profunda">
+          {es.marketing.pricing.chosen(
+            es.marketing.pricing.plans[interest.plan].name,
+            es.marketing.pricing.billing[interest.billing].toLowerCase(),
+          )}
+        </p>
+      )}
+      <input type="hidden" name="plan_interest" value={interest?.plan ?? ""} />
+      <input type="hidden" name="billing_interest" value={interest?.billing ?? ""} />
+      <input type="hidden" name="source" value={source ?? ""} />
+      <input type="hidden" name="utm" value={utm} />
       <div>
         <label htmlFor="access-email" className="mb-1.5 block font-semibold">
           {t.email}
