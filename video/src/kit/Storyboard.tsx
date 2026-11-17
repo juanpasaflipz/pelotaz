@@ -18,9 +18,11 @@ import { EASE } from "./ease";
 import { buildTimeline, Storyboard } from "./timeline";
 
 // Kit rule: the brand name is always highlighted in captions.
+// The brand name can be anything a visitor types, so it is matched literally.
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const segments = (text: string, brand: string): Seg[] =>
   text
-    .split(new RegExp(`(${brand})`))
+    .split(new RegExp(`(${escape(brand)})`))
     .filter(Boolean)
     .map((t) => ({ text: t, brand: t === brand }));
 // Kit rule: shorter captions are set larger.
@@ -103,10 +105,12 @@ const BallDropEndCard: React.FC<{ brand: string; tagline: string; cta: string; s
         style={{
           position: "absolute",
           top: 860,
-          fontSize: 190,
+          // Long names shrink so they stay on one line across the 1080 px frame.
+          fontSize: Math.max(84, Math.min(190, Math.floor(1700 / Math.max(brand.length, 1)))),
           fontWeight: 900,
           color: "#fff",
           letterSpacing: -6,
+          whiteSpace: "nowrap",
           transform: `scale(${0.6 + 0.4 * word})`,
           opacity: word,
         }}
@@ -145,10 +149,15 @@ const BallDropEndCard: React.FC<{ brand: string; tagline: string; cta: string; s
   );
 };
 
-export type StoryboardProps = { storyboard: Storyboard; durations: Record<string, number> };
+export type StoryboardProps = {
+  storyboard: Storyboard;
+  durations: Record<string, number>;
+  /** No music, voice or sound effects: for previews on the public page, which have no audio files. */
+  silent?: boolean;
+};
 
 // Plays any storyboard: it knows nothing about this particular ad.
-export const StoryboardVideo: React.FC<StoryboardProps> = ({ storyboard: sb, durations }) => {
+export const StoryboardVideo: React.FC<StoryboardProps> = ({ storyboard: sb, durations, silent }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const tl = buildTimeline(sb, durations, fps);
@@ -205,20 +214,24 @@ export const StoryboardVideo: React.FC<StoryboardProps> = ({ storyboard: sb, dur
         <BallDropEndCard brand={sb.brand.name} tagline={sb.endCard.tagline} cta={sb.endCard.cta} start={tl.endStart} />
       )}
 
-      <Audio src={staticFile(sb.music)} volume={(f) => (f > tl.endStart ? 0.55 : 0.32)} />
-      {tl.beats
-        .filter((b) => b.voAt !== null)
-        .map((b) => (
-          <Sequence key={b.id} from={b.voAt as number}>
-            <Audio src={staticFile(`vo/${sb.id}/${b.id}.wav`)} />
+      {!silent && (
+        <>
+          <Audio src={staticFile(sb.music)} volume={(f) => (f > tl.endStart ? 0.55 : 0.32)} />
+          {tl.beats
+            .filter((b) => b.voAt !== null)
+            .map((b) => (
+              <Sequence key={b.id} from={b.voAt as number}>
+                <Audio src={staticFile(`vo/${sb.id}/${b.id}.wav`)} />
+              </Sequence>
+            ))}
+          <Sequence from={tl.endStart + 11}>
+            <Audio src={staticFile("boing.wav")} volume={0.6} />
           </Sequence>
-        ))}
-      <Sequence from={tl.endStart + 11}>
-        <Audio src={staticFile("boing.wav")} volume={0.6} />
-      </Sequence>
-      <Sequence from={tl.endVoAt}>
-        <Audio src={staticFile(`vo/${sb.id}/endCard.wav`)} />
-      </Sequence>
+          <Sequence from={tl.endVoAt}>
+            <Audio src={staticFile(`vo/${sb.id}/endCard.wav`)} />
+          </Sequence>
+        </>
+      )}
     </AbsoluteFill>
   );
 };

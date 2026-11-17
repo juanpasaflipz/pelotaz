@@ -1,6 +1,6 @@
 # Pelotaz video
 
-Short vertical videos rendered from a storyboard file with [Remotion](https://www.remotion.dev/). This folder is its own package: the Next.js app does not import it, and it is excluded from the app's typecheck and lint. See `claude/video-ads-plan.md` in the project for where this is going.
+Short vertical videos rendered from a storyboard file with [Remotion](https://www.remotion.dev/). This folder is its own package for rendering. The public page imports the kit (`src/kit/`) for the live reel demo (`src/components/marketing/reel-demo/`), so a kit change shows there too; `remotion` and `@remotion/player` in the app must stay on the same version as here. See `claude/video-ads-plan.md` in the project for where this is going.
 
 ## How it works
 

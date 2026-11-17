@@ -1,13 +1,25 @@
 import Link from "next/link";
-import { Suspense, type CSSProperties } from "react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
 import { AccessRequestForm } from "@/components/access-request-form";
 import { BallMark } from "@/components/logo";
 import { CaseStudy } from "@/components/marketing/case-study";
 import { DayStory } from "@/components/marketing/day-story";
+import { GoogleScore } from "@/components/marketing/google-score";
+import {
+  HeroReelButton,
+  HeroReelProvider,
+  HeroReelSlot,
+} from "@/components/marketing/hero-reel";
 import { JonasOnCouch } from "@/components/marketing/jonas";
 import type { LandingEntry } from "@/components/marketing/metadata";
-import { MODULES, statusOf, type ModuleId } from "@/components/marketing/modules";
+import {
+  MODULES,
+  statusOf,
+  type ModuleId,
+  type ModuleStatus,
+} from "@/components/marketing/modules";
 import { Pricing } from "@/components/marketing/pricing";
+import { ReelDemo } from "@/components/marketing/reel-demo/reel-demo";
 import { ScrollOnLoad } from "@/components/marketing/scroll-on-load";
 import { StatusChip } from "@/components/marketing/status-chip";
 import { TrackedLink } from "@/components/marketing/track";
@@ -34,7 +46,7 @@ export function Landing({ entry }: { entry: LandingEntry }) {
       <Hero />
       <Day />
       <Modules />
-      <Sample />
+      <TryIt />
       <Suspense fallback={null}>
         <CaseStudy />
       </Suspense>
@@ -50,15 +62,22 @@ export function Landing({ entry }: { entry: LandingEntry }) {
             <h3 className="display text-2xl">{t.pricing.addonsTitle}</h3>
             <ul className="mt-3 flex flex-wrap gap-2">
               {t.pricing.addons.map((addon) => (
-                <li key={addon} className="rounded-full border border-borde bg-raya px-3 py-1 text-sm">
+                <li
+                  key={addon}
+                  className="rounded-full border border-borde bg-raya px-3 py-1 text-sm"
+                >
                   {addon}
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-sm text-tinta-suave">{t.pricing.addonsNote}</p>
+            <p className="mt-3 text-sm text-tinta-suave">
+              {t.pricing.addonsNote}
+            </p>
           </div>
           <p className="mt-8 font-semibold">{t.pricing.greenMonkey}</p>
-          <p className="mt-2 text-sm text-tinta-suave">{t.pricing.smallPrint}</p>
+          <p className="mt-2 text-sm text-tinta-suave">
+            {t.pricing.smallPrint}
+          </p>
         </div>
       </section>
       <Faq />
@@ -83,7 +102,10 @@ function SectionNav() {
     ["#preguntas", t.nav.faq],
   ] as const;
   return (
-    <nav aria-label={t.nav.label} className="sticky top-0 z-20 border-b border-borde bg-raya/95 backdrop-blur">
+    <nav
+      aria-label={t.nav.label}
+      className="sticky top-0 z-20 border-b border-borde bg-raya/95 backdrop-blur"
+    >
       <div className="relative mx-auto flex max-w-5xl items-center gap-4 px-5 py-2">
         {/* The ball rolls along the bottom of the bar as the page scrolls: the page's guide. */}
         <div aria-hidden className="nav-track">
@@ -91,7 +113,11 @@ function SectionNav() {
             <BallMark className="size-3.5" />
           </span>
         </div>
-        <a href="#inicio" aria-label={es.app.name} className="hidden flex-none sm:block">
+        <a
+          href="#inicio"
+          aria-label={es.app.name}
+          className="hidden flex-none sm:block"
+        >
           <BallMark className="size-6" />
         </a>
         <ul className="flex min-w-0 flex-1 gap-4 overflow-x-auto whitespace-nowrap text-sm font-medium">
@@ -103,7 +129,11 @@ function SectionNav() {
             </li>
           ))}
         </ul>
-        <TrackedLink href="#acceso" event="nav_button" className="button button-primary flex-none !min-h-9 !px-3 !py-1 text-sm">
+        <TrackedLink
+          href="#acceso"
+          event="nav_button"
+          className="button button-primary flex-none !min-h-9 !px-3 !py-1 text-sm"
+        >
           {t.nav.cta}
         </TrackedLink>
       </div>
@@ -114,44 +144,55 @@ function SectionNav() {
 function Hero() {
   return (
     <section id="inicio" className="bg-raya">
-      <div className="mx-auto grid max-w-5xl items-center gap-8 px-5 pb-12 pt-8 md:grid-cols-2 md:pt-14">
-        <div>
-          <h1 className="display text-5xl sm:text-7xl">
-            {t.hero.titleBefore} <span className="text-marca">{t.hero.titleHighlight}</span>
-          </h1>
-          <p className="mt-5 max-w-md text-lg">{t.hero.lead}</p>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <TrackedLink href="#acceso" event="hero_button" className="button button-primary">
-              {t.hero.cta}
-            </TrackedLink>
-            <a href="#como-funciona" className="button button-quiet">
-              {t.hero.secondary}
-            </a>
-          </div>
-          <p className="mt-4 text-sm text-tinta-suave">{t.hero.note}</p>
-          <p className="mt-2 text-sm">
-            {es.landing.haveAccess}{" "}
-            <Link href="/auth/sign-in" className="font-semibold underline underline-offset-4">
-              {es.auth.signIn}
-            </Link>
-          </p>
-        </div>
-        <div className="relative">
-          <JonasOnCouch label={t.hero.artLabel} className="h-auto w-full" />
-          <ul aria-hidden className="mt-3 grid justify-items-start gap-2 sm:absolute sm:right-0 sm:top-[30%] sm:mt-0 sm:justify-items-end">
-            {t.hero.notifications.map((note, index) => (
-              <li
-                key={note}
-                style={{ "--i": index } as CSSProperties}
-                className="hero-note flex items-center gap-2 rounded-lg bg-raya px-3 py-1.5 text-xs font-semibold shadow-md sm:text-sm"
+      <HeroReelProvider>
+        <div className="mx-auto grid max-w-5xl items-center gap-8 px-5 pb-12 pt-8 md:grid-cols-2 md:pt-14">
+          <div>
+            <h1 className="display text-5xl sm:text-7xl">
+              {t.hero.titleBefore}{" "}
+              <span className="text-marca">{t.hero.titleHighlight}</span>
+            </h1>
+            <p className="mt-5 max-w-md text-lg">{t.hero.lead}</p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <TrackedLink
+                href="#acceso"
+                event="hero_button"
+                className="button button-primary"
               >
-                <BallMark className="size-4" />
-                {note}
-              </li>
-            ))}
-          </ul>
+                {t.hero.cta}
+              </TrackedLink>
+              <HeroReelButton>{t.hero.secondary}</HeroReelButton>
+            </div>
+            <p className="mt-4 text-sm text-tinta-suave">{t.hero.note}</p>
+            <p className="mt-2 text-sm">
+              {es.landing.haveAccess}{" "}
+              <Link
+                href="/auth/sign-in"
+                className="font-semibold underline underline-offset-4"
+              >
+                {es.auth.signIn}
+              </Link>
+            </p>
+          </div>
+          <HeroReelSlot>
+            <JonasOnCouch label={t.hero.artLabel} className="h-auto w-full" />
+            <ul
+              aria-hidden
+              className="mt-3 grid justify-items-start gap-2 sm:absolute sm:right-0 sm:top-[30%] sm:mt-0 sm:justify-items-end"
+            >
+              {t.hero.notifications.map((note, index) => (
+                <li
+                  key={note}
+                  style={{ "--i": index } as CSSProperties}
+                  className="hero-note flex items-center gap-2 rounded-lg bg-raya px-3 py-1.5 text-xs font-semibold shadow-md sm:text-sm"
+                >
+                  <BallMark className="size-4" />
+                  {note}
+                </li>
+              ))}
+            </ul>
+          </HeroReelSlot>
         </div>
-      </div>
+      </HeroReelProvider>
     </section>
   );
 }
@@ -167,13 +208,19 @@ function Day() {
             const moduleId = beat.module as ModuleId;
             const status = statusOf(moduleId);
             return (
-              <li key={beat.time} className="flex w-[78%] flex-none snap-start flex-col rounded-xl bg-raya p-5 md:w-auto">
+              <li
+                key={beat.time}
+                className="flex w-[78%] flex-none snap-start flex-col rounded-xl bg-raya p-5 md:w-auto"
+              >
                 <p className="display text-3xl text-marca">{beat.time}</p>
                 <h3 className="display mt-2 text-xl">{beat.title}</h3>
                 <p className="mt-2 flex-1 text-tinta-suave">{beat.body}</p>
                 <p className="mt-4 flex flex-wrap items-center gap-2">
                   <StatusChip status={status} />
-                  <a href={`#modulo-${moduleId}`} className="text-sm font-semibold underline underline-offset-4">
+                  <a
+                    href={`#modulo-${moduleId}`}
+                    className="text-sm font-semibold underline underline-offset-4"
+                  >
                     {t.day.seeModule}
                   </a>
                 </p>
@@ -191,13 +238,21 @@ function Modules() {
   return (
     <section id="modulos" className="scroll-mt-16 bg-raya">
       <div className="mx-auto max-w-5xl px-5 py-14">
-        <Heading before={t.modules.title} highlight={t.modules.titleHighlight} />
+        <Heading
+          before={t.modules.title}
+          highlight={t.modules.titleHighlight}
+        />
         <p className="mt-3 max-w-prose text-lg">{t.modules.lead}</p>
         <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map(({ id, status }) => {
-            const item: { title: string; body: string; note?: string } = t.modules.items[id];
+            const item: { title: string; body: string; note?: string } =
+              t.modules.items[id];
             return (
-              <li id={`modulo-${id}`} key={id} className="scroll-mt-16 rounded-xl border-2 border-borde p-5">
+              <li
+                id={`modulo-${id}`}
+                key={id}
+                className="scroll-mt-16 rounded-xl border-2 border-borde p-5"
+              >
                 <StatusChip status={status} note={item.note} />
                 <h3 className="display mt-3 text-xl">{item.title}</h3>
                 <p className="mt-2 text-tinta-suave">{item.body}</p>
@@ -210,60 +265,118 @@ function Modules() {
   );
 }
 
-function Sample() {
+function TryIt() {
+  const d = t.tryIt;
   return (
-    <section className="bg-cal">
+    <section id="pruebalo" className="scroll-mt-16 bg-cal">
       <div className="mx-auto max-w-5xl px-5 py-14">
-        <Heading before={t.sample.title} highlight={t.sample.titleHighlight} />
-        <p className="mt-3 max-w-prose text-lg">{t.sample.lead}</p>
-        <div className="mt-8 rounded-xl bg-raya p-5">
-          <p className="flex flex-wrap items-center gap-3">
-            <span className="display text-2xl">{t.sample.business}</span>
-            <span className="rounded-full bg-tinta px-2.5 py-0.5 text-xs font-semibold text-raya">{t.sample.label}</span>
-          </p>
-          <ul className="mt-4 grid gap-3">
-            {t.sample.posts.map((post) => (
-              <li key={post.day}>
-                <details className="group rounded-lg border-2 border-borde open:border-tinta">
-                  <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 p-4">
-                    <span className="font-semibold text-marca-profunda">{post.day}</span>
-                    <span className="display text-lg">{post.title}</span>
-                    <span className="text-sm text-tinta-suave">{post.channel}</span>
-                    <span aria-hidden className="ml-auto text-xl leading-none group-open:rotate-45">
-                      +
-                    </span>
-                  </summary>
-                  <div className="grid gap-3 border-t border-borde p-4">
-                    <p>
-                      <span className="font-semibold">{t.sample.reasonLabel}: </span>
-                      {post.reason}
-                    </p>
-                    <div>
-                      <p className="font-semibold">{t.sample.draftLabel}</p>
-                      <p className="mt-1 rounded bg-cal p-3">{post.draft}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">{t.sample.checksLabel}</p>
-                      <ul className="mt-1 grid gap-1">
-                        {post.checks.map((check) => (
-                          <li key={check} className="flex gap-2">
-                            <span aria-hidden className="font-bold text-ok">
-                              ✓
-                            </span>
-                            {check}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </details>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="mt-4 text-tinta-suave">{t.sample.soon}</p>
+        <Heading before={d.title} highlight={d.titleHighlight} />
+        <p className="mt-3 max-w-prose text-lg">{d.lead}</p>
+
+        <Demo
+          title={d.reel.title}
+          lead={d.reel.lead}
+          status={statusOf("video")}
+        >
+          <ReelDemo />
+        </Demo>
+
+        <Demo title={t.sample.title} lead={t.sample.lead} example>
+          <SampleWeek />
+        </Demo>
+
+        <Demo
+          title={d.google.title}
+          lead={d.google.lead}
+          status={statusOf("google")}
+          example
+        >
+          <GoogleScore />
+        </Demo>
       </div>
     </section>
+  );
+}
+
+function Demo(props: {
+  title: string;
+  lead: string;
+  status?: ModuleStatus;
+  example?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <article className="mt-8 rounded-xl bg-raya p-5 sm:p-6">
+      <p className="flex flex-wrap items-center gap-2">
+        {props.status && <StatusChip status={props.status} />}
+        {props.example && (
+          <span className="rounded-full bg-tinta px-2.5 py-0.5 text-xs font-semibold text-raya">
+            {t.tryIt.example}
+          </span>
+        )}
+      </p>
+      <h3 className="display mt-2 text-2xl sm:text-3xl">{props.title}</h3>
+      <p className="mt-1 max-w-prose text-tinta-suave">{props.lead}</p>
+      <div className="mt-5">{props.children}</div>
+    </article>
+  );
+}
+
+function SampleWeek() {
+  return (
+    <>
+      <div>
+        <p className="display text-xl">{t.sample.business}</p>
+        <ul className="mt-4 grid gap-3">
+          {t.sample.posts.map((post) => (
+            <li key={post.day}>
+              <details className="group rounded-lg border-2 border-borde open:border-tinta">
+                <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 gap-y-1 p-4">
+                  <span className="font-semibold text-marca-profunda">
+                    {post.day}
+                  </span>
+                  <span className="display text-lg">{post.title}</span>
+                  <span className="text-sm text-tinta-suave">
+                    {post.channel}
+                  </span>
+                  <span
+                    aria-hidden
+                    className="ml-auto text-xl leading-none group-open:rotate-45"
+                  >
+                    +
+                  </span>
+                </summary>
+                <div className="grid gap-3 border-t border-borde p-4">
+                  <p>
+                    <span className="font-semibold">
+                      {t.sample.reasonLabel}:{" "}
+                    </span>
+                    {post.reason}
+                  </p>
+                  <div>
+                    <p className="font-semibold">{t.sample.draftLabel}</p>
+                    <p className="mt-1 rounded bg-cal p-3">{post.draft}</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold">{t.sample.checksLabel}</p>
+                    <ul className="mt-1 grid gap-1">
+                      {post.checks.map((check) => (
+                        <li key={check} className="flex gap-2">
+                          <span aria-hidden className="font-bold text-ok">
+                            ✓
+                          </span>
+                          {check}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </details>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
   );
 }
 
@@ -274,20 +387,36 @@ function Compare() {
       <div className="mx-auto max-w-5xl px-5 py-14">
         <Heading before={c.title} highlight={c.titleHighlight} />
         <div className="mt-8 overflow-hidden rounded-xl border-2 border-tinta bg-raya">
-          <div aria-hidden className="grid grid-cols-3 gap-2 border-b-2 border-tinta px-4 py-3 text-sm font-bold">
+          <div
+            aria-hidden
+            className="grid grid-cols-3 gap-2 border-b-2 border-tinta px-4 py-3 text-sm font-bold"
+          >
             {c.columns.map((column, index) => (
-              <span key={column} className={index === 2 ? "text-marca" : undefined}>
+              <span
+                key={column}
+                className={index === 2 ? "text-marca" : undefined}
+              >
                 {column}
               </span>
             ))}
           </div>
           <dl>
             {c.rows.map((row) => (
-              <div key={row.label} className="border-b border-borde px-4 py-3 last:border-b-0">
+              <div
+                key={row.label}
+                className="border-b border-borde px-4 py-3 last:border-b-0"
+              >
                 <dt className="font-semibold">{row.label}</dt>
                 <dd className="mt-1 grid grid-cols-3 gap-2 text-sm">
                   {row.values.map((value, index) => (
-                    <span key={c.columns[index]} className={index === 2 ? "font-semibold text-marca-profunda" : "text-tinta-suave"}>
+                    <span
+                      key={c.columns[index]}
+                      className={
+                        index === 2
+                          ? "font-semibold text-marca-profunda"
+                          : "text-tinta-suave"
+                      }
+                    >
                       <span className="sr-only">{c.columns[index]}: </span>
                       {value}
                     </span>
@@ -312,15 +441,23 @@ function Audience() {
         <p className="mt-3 max-w-prose text-lg">{a.lead}</p>
         <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {a.trades.map((trade) => (
-            <li key={trade.name} className="flex items-center justify-between gap-3 rounded-xl border-2 border-borde p-4">
+            <li
+              key={trade.name}
+              className="flex items-center justify-between gap-3 rounded-xl border-2 border-borde p-4"
+            >
               <span>
                 <span className="display block text-lg">{trade.name}</span>
-                <span className={`text-sm font-semibold ${trade.ready ? "text-ok" : "text-tinta-suave"}`}>
+                <span
+                  className={`text-sm font-semibold ${trade.ready ? "text-ok" : "text-tinta-suave"}`}
+                >
                   {trade.ready ? a.now : a.soon}
                 </span>
               </span>
               {!trade.ready && (
-                <a href="#acceso" className="text-sm font-semibold underline underline-offset-4">
+                <a
+                  href="#acceso"
+                  className="text-sm font-semibold underline underline-offset-4"
+                >
                   {a.join}
                 </a>
               )}
@@ -343,7 +480,10 @@ function Faq() {
               <details className="group">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-semibold">
                   {item.q}
-                  <span aria-hidden className="text-xl leading-none group-open:rotate-45">
+                  <span
+                    aria-hidden
+                    className="text-xl leading-none group-open:rotate-45"
+                  >
                     +
                   </span>
                 </summary>
@@ -352,7 +492,10 @@ function Faq() {
                   {item.privacyLink && (
                     <>
                       {" "}
-                      <Link href="/privacidad" className="font-semibold text-tinta underline underline-offset-4">
+                      <Link
+                        href="/privacidad"
+                        className="font-semibold text-tinta underline underline-offset-4"
+                      >
                         {es.landing.privacy}
                       </Link>
                     </>
@@ -399,7 +542,12 @@ function JsonLd() {
       operatingSystem: "Web",
       inLanguage: "es-MX",
       description: t.jsonLd.description,
-      offers: { "@type": "Offer", name: t.pricing.plans.beta.name, price: "0", priceCurrency: "MXN" },
+      offers: {
+        "@type": "Offer",
+        name: t.pricing.plans.beta.name,
+        price: "0",
+        priceCurrency: "MXN",
+      },
     },
     {
       "@context": "https://schema.org",
@@ -414,7 +562,9 @@ function JsonLd() {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
+      dangerouslySetInnerHTML={{
+        __html: JSON.stringify(data).replace(/</g, "\\u003c"),
+      }}
     />
   );
 }
