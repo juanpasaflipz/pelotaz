@@ -211,7 +211,15 @@ function Day({ outfit }: { outfit: Outfit }) {
     <section id="como-funciona" className="scroll-mt-16 bg-cal">
       <div className="mx-auto max-w-5xl px-5 py-14">
         <h2 className="display text-4xl sm:text-5xl">{t.day.title}</h2>
-        <p className="mt-3 max-w-prose text-lg">{t.day.lead}</p>
+        <p className="mt-3 max-w-prose text-lg">
+          {t.day.lead}{" "}
+          <Link
+            href="/jonas"
+            className="font-semibold underline underline-offset-4"
+          >
+            {t.day.meet}
+          </Link>
+        </p>
         <ol className="day-cards -mx-5 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
           {t.day.beats.map((beat) => {
             const moduleId = beat.module as ModuleId;
