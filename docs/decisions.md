@@ -81,6 +81,30 @@ blocking the answer. Any other DB error still propagates. For PR 2: once
 `assistant_messages` exists, persist cost and tokens on that row directly
 too, so usage data is never solely dependent on the ledger write succeeding.
 
+## Eval system prompt: today's date and arithmetic, confirmed with Juan 2026-11-18
+
+The smoke test against `fast_only` surfaced two things the system prompt
+needed to say explicitly:
+
+- **Today's date.** With no date in the prompt, the fast model guessed wild,
+  wrong absolute periods for "esta semana" / "la semana pasada" / "ayer"
+  (e.g. "junio 2025"), got empty tool results for those, and correctly
+  refused to invent a comparison — safe, but it meant every relative-date
+  question failed the grounding check for the wrong reason. The eval's
+  prompt now ends with a **fixed** date line, `Hoy es jueves 12 de noviembre
+  de 2026.` — fixed, not the real clock, so a run stays reproducible against
+  fixtures pinned to specific November 2026 dates, and kept last so the rest
+  of the prompt stays a stable, cacheable prefix. **PR 2 must inject the
+  real "today" in the tenant's own timezone** into the production system
+  prompt instead of a fixed string — this is a reminder for that PR, not
+  something PR 1 builds.
+- **No model-side arithmetic.** The fast model computed a difference itself
+  ("esta vez subió 46 interacciones y 600 de alcance") instead of calling
+  `compare_periods`, violating the doc's "the model does not do maths"
+  rule. The prompt now has one explicit line forbidding this and naming
+  `compare_periods` as the tool to call instead. Same prompt for every
+  setup — this isn't a per-model workaround.
+
 ## Still to fill in (after the eval runs)
 
 - Chosen setup (`routed`, `fast_only` or `strong_only`) and which GLM version
