@@ -105,10 +105,48 @@ needed to say explicitly:
   `compare_periods` as the tool to call instead. Same prompt for every
   setup — this isn't a per-model workaround.
 
+## GLM-5.3 dropped from the eval, confirmed with Juan 2026-11-18
+
+The 2026-11-18 run against real DeepInfra measured GLM-5.3 as strictly
+worse than GLM-5.2 for this use, with no offsetting quality gain observed:
+
+| | GLM-5.2 | GLM-5.3 |
+|---|---|---|
+| Timeouts (strong_only, 40 turns) | 1 | 6 |
+| Timeouts (routed, 40 turns) | 1 | 3 |
+| Slowest successful call | 19.9s | 36.9s |
+| Price, output per 1M | $1.80 | $2.50 |
+| License | MIT | custom `glm-5.3`, not MIT |
+
+`strong_only_glm53` and `routed_glm53` are removed from `EVAL_SETUPS`
+(`scripts/eval/report.ts`); `GLM_5_3` stays exported there, unused, as a
+record of the exact model id if this is ever revisited. GLM-5.3-**Flash**
+(a different, smaller, MIT-licensed model) is unaffected and still
+available as the optional alt-fast setup.
+
+## Timeout bug: abortSignal alone did not bound the call
+
+The same run measured two calls taking 120s and 292s despite a 20s
+`abortSignal` timeout on `generateText` — both ambiguous/exploratory
+questions (`q15`, `a3`) that drive many tool-calling steps, where the
+abort evidently did not cut the in-flight request off. Fixed in
+`src/lib/assistant/provider.ts`'s `callOnce` with a `Promise.race` against
+an explicit timeout promise, so the call settles on schedule from the
+caller's side regardless of what the abort actually manages to cancel
+underneath. Covered by a regression test in `test/assistant-provider.test.ts`
+("bounds the whole call even when the underlying request ignores the abort
+signal") using a mock that ignores `abortSignal` entirely, reproducing the
+same shape of bug. One known residual risk, noted for whoever builds PR 2's
+server endpoint: the abandoned call is left running in the background
+rather than truly killed, which is fine for a short-lived CLI eval but
+could accumulate open connections in a long-running server process under
+sustained timeouts — worth checking DeepInfra's/undici's connection pooling
+behavior under load before shipping the live chat route.
+
 ## Still to fill in (after the eval runs)
 
-- Chosen setup (`routed`, `fast_only` or `strong_only`) and which GLM version
-  won, from `npm run eval:assistant` + `npm run score:assistant`.
+- Chosen setup (`routed`, `fast_only` or `strong_only`), from
+  `npm run eval:assistant` + `npm run score:assistant` — GLM-5.2 is now the
+  only strong model under consideration (GLM-5.3 dropped, above).
 - Measured escalation rate and cost per answer for the chosen setup.
-- Whether GLM-5.3's quality gain was worth its non-MIT license versus 5.2.
 - Resolution on the DeepInfra US-region question above, before Stage 3.

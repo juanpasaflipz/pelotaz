@@ -124,6 +124,26 @@ describe("createAssistantProvider: timeout and retry", () => {
     ).rejects.toThrow(AssistantProviderUnavailableError);
     expect(attempts).toBe(2);
   });
+
+  it("bounds the whole call even when the underlying request ignores the abort signal", async () => {
+    // Reproduces what DeepInfra calls measured in practice: a multi-step
+    // tool-calling run that took 120-292 real seconds despite a 20s
+    // abortSignal timeout. This mock never checks `options.abortSignal` at
+    // all, the same way that slow call effectively never stopped — so the
+    // only thing that can bound this test is callOnce's own Promise.race.
+    const resolveModel = () =>
+      new MockLanguageModelV4({
+        doGenerate: () => new Promise((resolve) => setTimeout(() => resolve(textResult("tarde")), 400)),
+      });
+    const provider = createAssistantProvider({ ...BASE_CONFIG, timeoutMs: 30 }, resolveModel);
+    const started = Date.now();
+    await expect(
+      provider.chat({ purpose: "chat.answer", role: "fast", messages: [{ role: "user", content: "hola" }] }),
+    ).rejects.toThrow(AssistantProviderUnavailableError);
+    // Two timeouts (~30ms each) should settle this well before the mock's
+    // 400ms delay would have resolved it on its own.
+    expect(Date.now() - started).toBeLessThan(400);
+  });
 });
 
 describe("createAssistantProvider: tool calls", () => {

@@ -43,6 +43,19 @@ export interface AssistantProvider {
   chat(request: ChatRequest): Promise<ChatResult>;
 }
 
+class CallTimedOutError extends Error {}
+
+/**
+ * Bounds the whole call — every tool-calling step inside one `generateText`
+ * run, not just its first request — to `config.timeoutMs`. `abortSignal`
+ * alone was not enough: a run with docs/pelota-assistant.md's fixture that
+ * needed several tool round-trips was measured taking 120–292 seconds
+ * despite a 20s `abortSignal` timeout, so the abort is not trusted to cut
+ * the underlying call off by itself. `Promise.race` guarantees this
+ * function settles on time regardless of what the abort actually manages
+ * to cancel; the abandoned call (and its abort, which still fires and may
+ * free the connection) is left to resolve on its own in the background.
+ */
 async function callOnce(
   config: AssistantConfig,
   resolveModel: (role: AssistantRole) => LanguageModel,
@@ -50,22 +63,31 @@ async function callOnce(
   request: ChatRequest,
 ) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new CallTimedOutError(`Assistant provider call exceeded ${config.timeoutMs}ms`));
+    }, config.timeoutMs);
+  });
   try {
-    return await generateText({
-      model: resolveModel(role),
-      messages: request.messages,
-      // The system prompt lives as the first message in `request.messages`
-      // (not a separate `system` option) so there is exactly one array for
-      // the caller to keep byte-identical across calls, per the doc's
-      // prompt-cache contract.
-      allowSystemInMessages: true,
-      tools: request.tools,
-      stopWhen: stepCountIs(request.maxToolSteps ?? config.maxToolSteps),
-      abortSignal: controller.signal,
-    });
+    return await Promise.race([
+      generateText({
+        model: resolveModel(role),
+        messages: request.messages,
+        // The system prompt lives as the first message in `request.messages`
+        // (not a separate `system` option) so there is exactly one array for
+        // the caller to keep byte-identical across calls, per the doc's
+        // prompt-cache contract.
+        allowSystemInMessages: true,
+        tools: request.tools,
+        stopWhen: stepCountIs(request.maxToolSteps ?? config.maxToolSteps),
+        abortSignal: controller.signal,
+      }),
+      timeout,
+    ]);
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(timer!);
   }
 }
 

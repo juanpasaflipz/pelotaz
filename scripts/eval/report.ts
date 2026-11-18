@@ -1,13 +1,7 @@
 import type { AssistantRole } from "../../src/lib/assistant/types";
 import type { EvalCategory } from "./questions";
 
-export type EvalSetupName =
-  | "fast_only"
-  | "strong_only_glm52"
-  | "strong_only_glm53"
-  | "routed_glm52"
-  | "routed_glm53"
-  | "fast_only_glm53flash";
+export type EvalSetupName = "fast_only" | "strong_only_glm52" | "routed_glm52" | "fast_only_glm53flash";
 
 export interface EvalSetup {
   name: EvalSetupName;
@@ -20,15 +14,22 @@ export interface EvalSetup {
 
 export const DEEPSEEK_FLASH = "deepseek-ai/DeepSeek-V4.1-Flash";
 export const GLM_5_2 = "zai-org/GLM-5.2";
+/**
+ * Dropped from the setups below after the 2026-11-18 run: slower (several
+ * 15-37s calls, some past 20s even with the timeout fix), pricier
+ * ($0.563/$2.50 vs 5.2's $0.563/$1.80 per 1M), more timeouts (6/40 and
+ * 3/40 in strong_only and routed respectively, vs 1/40 and 1/40 for 5.2),
+ * and a custom non-MIT license — all for no measured quality gain in this
+ * eval. See docs/decisions.md. Kept here, unused, for reference/provenance
+ * if this is ever revisited.
+ */
 export const GLM_5_3 = "zai-org/GLM-5.3";
 export const GLM_5_3_FLASH = "zai-org/GLM-5.3-Flash";
 
 export const EVAL_SETUPS: EvalSetup[] = [
   { name: "fast_only", mode: "fast_only", modelFast: DEEPSEEK_FLASH, modelStrong: GLM_5_2 },
   { name: "strong_only_glm52", mode: "strong_only", modelFast: DEEPSEEK_FLASH, modelStrong: GLM_5_2 },
-  { name: "strong_only_glm53", mode: "strong_only", modelFast: DEEPSEEK_FLASH, modelStrong: GLM_5_3 },
   { name: "routed_glm52", mode: "routed", modelFast: DEEPSEEK_FLASH, modelStrong: GLM_5_2 },
-  { name: "routed_glm53", mode: "routed", modelFast: DEEPSEEK_FLASH, modelStrong: GLM_5_3 },
   { name: "fast_only_glm53flash", mode: "fast_only", modelFast: GLM_5_3_FLASH, modelStrong: GLM_5_2, optional: true },
 ];
 
