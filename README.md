@@ -119,7 +119,7 @@ Without the Neon settings, `AUTH_MODE=dev` signs every request in as one tenant 
 
 ### Credits
 
-`credit_ledger` is append-only for tenant code (it has `SELECT` and `INSERT` on that table and nothing else). A trigger keeps `tenants.credit_balance` equal to the ledger sum, and a `CHECK` keeps the balance from going negative, so a debit that would overdraw aborts the whole transaction it is part of. Nothing spends credits yet; the mechanism is in place and tested for phase 2.
+`credit_ledger` is append-only for tenant code (it has `SELECT` and `INSERT` on that table and nothing else). A trigger keeps `tenants.credit_balance` equal to the ledger sum, and a `CHECK` keeps the balance from going negative, so a debit that would overdraw aborts the whole transaction it is part of. The assistant (below) is the first thing that spends credits, and every tenant's balance is 0 until something grants credits — which nothing does yet — so its debits run in their own savepoint and are reported as unrecorded rather than blocking an answer; see `src/lib/assistant/ledger.ts`.
 
 ### Fetching user-supplied URLs
 
@@ -136,6 +136,10 @@ Anyone can paste any URL, and the server fetches it, so the fetcher is built to 
 The crawled text is passed to the model as fenced, untrusted data with an instruction to ignore anything in it addressed to an AI. This lowers the risk of a site steering its own profile; it does not eliminate it, which is one reason every profile goes to a person before it is used.
 
 `LLM_MODEL` is `"<provider>:<model>"` with `anthropic` and `openai` wired in. Set `LLM_MODEL_CRITIC` in the same format to run the audit pass on a smaller, cheaper model; left unset, `LLM_MODEL` does both. Token usage for each call is stored on the profile version it produced (`brand_dna.llm_usage`), which is the raw data for unit cost.
+
+### Assistant provider (La Pelota, PR 1 only)
+
+`src/lib/assistant/provider.ts` is the provider layer for the in-product assistant described in `docs/pelota-assistant.md` — not wired to a route or the UI yet. It talks to DeepInfra's OpenAI-compatible API (`ASSISTANT_BASE_URL`, `ASSISTANT_API_KEY`) with two raw model ids, `ASSISTANT_MODEL_FAST` and `ASSISTANT_MODEL_STRONG` (see `docs/decisions.md` for the current picks and why). `ASSISTANT_MODE` (`routed` default, `fast_only`, `strong_only`) pins which role `chat()` may use, for comparing setups without code changes. `ASSISTANT_ENABLED` plus the `ASSISTANT_TENANTS` allowlist stay off/empty — nothing here is reachable by anyone until that changes deliberately. `npm run eval:assistant` and `npm run score:assistant` run the fixture-only eval described in the doc; see `eval-runs/` (git-ignored).
 
 ## Publishing to Instagram and Facebook
 
