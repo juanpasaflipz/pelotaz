@@ -82,6 +82,18 @@ describe("falselyClaimsNoData", () => {
   it("does not flag an answer that actually has the data", () => {
     expect(falselyClaimsNoData("Tu post del martes llegó a 1200 personas.")).toBe(false);
   });
+
+  it("matches an accented verb form like \"encontré\", not just the unaccented form", () => {
+    // Regression: a real routed_glm52 run answered "No encontré un reel
+    // sobre cómo asan la arrachera en el plan de esta semana" for a
+    // question whose fixture does have that reel — and the first version
+    // of this regex missed it. JS `\b` is ASCII-`\w`-based, so a trailing
+    // `\b` right after an accented vowel like "é" never matches (the
+    // accented letter isn't a word character either), silently breaking
+    // every verb alternative spelled with an accent.
+    expect(falselyClaimsNoData("No encontré un reel sobre cómo asan la arrachera en el plan de esta semana.")).toBe(true);
+    expect(falselyClaimsNoData("No detectó publicaciones para esa fecha.")).toBe(true);
+  });
 });
 
 describe("needsEscalation", () => {

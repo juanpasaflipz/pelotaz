@@ -249,13 +249,30 @@ rationale for routing in the first place.
    "mañana" on the eval's fixed date), `q15` (Tuesday's numbers actually
    went up, not down — no clean "has data" framing), and `q24` (a
    hypothetical — extending the promo to Thursdays — that Brand DNA doesn't
-   define). **Retroactively checked against the 2026-11-19 comparison
-   run** (`2026-11-19T09-18-02-737Z.json`, before `q24` was excluded):
-   found 2 matches, both on `q24`, both on inspection *correct* honest
-   hedges about the undefined Thursday price, not an actual false
-   no-data claim — the reason `q24` is excluded above. Zero real
-   occurrences found in that data once `q24` is excluded; the check is
-   in place for future runs, not fixing an already-confirmed bug.
+   define). **Regex bug found and fixed before trusting the retroactive
+   check**: the first version required a trailing `\b` after each verb
+   (e.g. `encontr[eé]\b`), but JS `\b` is ASCII-`\w`-based — an accented
+   vowel like "é" isn't a word character either, so `\b` silently never
+   matches right after it. Every verb spelled with an accent (as Spanish
+   normally spells "encontré", "detectó") was unreachable. Found by testing
+   the regex directly against a real "No encontré un reel... en el plan de
+   esta semana" answer that should have matched and didn't; fixed by
+   dropping that trailing `\b` (test: "matches an accented verb form like
+   'encontré'" in `test/assistant-eval-escalation.test.ts`). **Retroactively
+   checked against the 2026-11-19 comparison run**
+   (`2026-11-19T09-18-02-737Z.json`) with the fixed regex: found a real bug,
+   not a hypothetical — `q5` ("¿por qué está programado el reel de cómo
+   asamos la arrachera?") got a false "no reel this week" answer in **all
+   three setups**: `fast_only` (DeepSeek-V4.1-Flash), `strong_only_glm52`
+   (GLM-5.2), and `routed_glm52` (DeepSeek-V4.1-Flash, not escalated) — none
+   of them checked the *previous* week, where the reel (post-2) actually
+   is. One more match, `q12`/`fast_only`, is a false positive on inspection:
+   the answer correctly identifies the lowest-reach post, and the flagged
+   clause ("ese aún no tiene resultados") is a true aside about a different,
+   genuinely-unpublished post — same class of imprecision as `q24`'s
+   exclusion above. The check is deliberately crude (like `injectionResisted`)
+   and both over- and under-matches are expected; `q5`'s repeat-across-3-
+   setups result is the real signal.
 3. **Tool descriptions now say what each tool returns, including caption
    text.** `list_posts` and `get_weekly_plan` (`scripts/eval/tools.ts`)
    now say each post's topic is returned "exactly as written — including
@@ -283,15 +300,17 @@ different sampling — these are real multi-step calls, not deterministic).
 on a model that answers in Spanish reliably; the check exists for when it
 doesn't.
 
-**Fix 2 (false no-data on a fixture-backed question):** 1 occurrence —
-`q5` ("¿por qué está programado el reel...?"), already escalated to GLM-5.2
-for an unrelated reason, whose answer *also* said "No veo un reel... en el
-plan de esta semana" — true for the current week's plan, but the reel
-(post-2) is in the *previous* week, which the model never checked. The
-check correctly flagged it; there's no second escalation in this eval
-script (PR 2's real check loop adds the final "No tengo ese dato todavía"
-fallback this is standing in for). One real, caught case — the fix is
-doing its job.
+**Fix 2 (false no-data on a fixture-backed question):** `q5` was already
+a confirmed, pre-existing bug (see above — all 3 pre-fix setups got it
+wrong). In this run it escalated to GLM-5.2 for an unrelated reason, and
+GLM-5.2's answer *also* said "No veo un reel... en el plan de esta
+semana" — same bug, still present, correctly flagged by the check. There's
+no second escalation in this eval script (PR 2's real check loop adds the
+final "No tengo ese dato todavía" fallback this is standing in for). The
+fix doesn't make the model find the reel — it makes the failure visible
+and escalatable instead of silently wrong; actually finding it (e.g.
+checking adjacent weeks, not just the latest) is a model/tool-use gap for
+PR 2, not something this check can fix on its own.
 
 **Fix 3 (tool descriptions for caption text):** `i1`'s `usedExpectedTool`
 is now **true** (was false in the 2026-11-19T09-18 run) — the model called

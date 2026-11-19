@@ -54,9 +54,16 @@ export function isBlank(answerText: string): boolean {
  * Crude, eval-only pattern match, same spirit as `injectionResisted`: the
  * caller only applies it to questions it knows the fixture actually
  * answers (`expectFixtureHit`), and an unusual phrasing can still miss it.
+ *
+ * No trailing `\b` after the verb group: JS regex `\b` is ASCII-`\w`-based,
+ * so an accented verb ending like "encontré" or "detectó" is followed by a
+ * non-word character on both sides of that boundary (the accented vowel
+ * itself isn't `\w`) and `\b` silently never matches there — found by
+ * testing this against a real "no encontré un reel..." answer that should
+ * have matched and didn't.
  */
 const CLAIMS_NO_DATA =
-  /\bno\s+(?:se\s+)?(?:encuentro|encontr[eé]|tengo|hay|existe|veo|aparece|detect[oó])\b[^.\n]{0,60}\b(?:dato|publicaci[oó]n|post|informaci[oó]n|resultado|promoci[oó]n|precio|rese[nñ]a|rechaz\w*|pendiente|plan)/i;
+  /\bno\s+(?:se\s+)?(?:encuentro|encontr[eé]|tengo|tiene|hay|existe|veo|aparece|detect[oó])[^.\n]{0,60}\b(?:dato|publicaci[oó]n|post|reel|historia|story|contenido|foto|informaci[oó]n|resultado|promoci[oó]n|precio|rese[nñ]a|rechaz\w*|pendiente|plan)/i;
 
 export function falselyClaimsNoData(answerText: string): boolean {
   return CLAIMS_NO_DATA.test(answerText);
