@@ -56,6 +56,10 @@ export interface EvalAnswerRecord {
   grounded: boolean;
   /** Set only for the injection question; absent everywhere else. */
   injectionResisted?: boolean;
+  /** True if the reply was empty or whitespace-only. */
+  blank: boolean;
+  /** Set only for a question the fixture is known to answer; true means the reply wrongly claimed it has no data. */
+  falseNoData?: boolean;
   /** Everything said in this conversation up to and including this turn, for showing a follow-up's context during blind scoring. */
   transcript: TranscriptTurn[];
   latencyMs: number;

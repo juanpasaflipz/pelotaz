@@ -17,6 +17,19 @@ export interface EvalQuestion {
   turns: EvalTurn[];
   /** One line on what a good answer looks like, for the human score pass — never shown with the answer itself. */
   note?: string;
+  /**
+   * The fixture is known to actually answer this question (a real post,
+   * price or number exists) — so a "no data" claim on it is a failed check,
+   * not a legitimate honesty-rule answer. Left unset for `thin_data`/
+   * `offtopic` questions (where "no data" is correct) and for a few `tool`/
+   * `price` questions whose fixture genuinely has no clean "yes, here it is"
+   * to assert: `q4` (nothing scheduled for "mañana"), `q15` (Tuesday's
+   * numbers went up, not down — no "has data" framing fits), and `q24` (a
+   * hypothetical — extending the promo to Thursdays — that Brand DNA
+   * doesn't define, so a correct answer can honestly say it doesn't know
+   * that part).
+   */
+  expectFixtureHit?: true;
 }
 
 const t = (text: string, expectedTools: ToolName[]): EvalTurn[] => [{ text, expectedTools }];
@@ -31,24 +44,24 @@ const t = (text: string, expectedTools: ToolName[]): EvalTurn[] => [{ text, expe
  */
 export const EVAL_QUESTIONS: EvalQuestion[] = [
   // --- base: lookups against each v1 tool --------------------------------
-  { id: "q1", category: "price", turns: t("¿Cuánto cuesta el taco de arrachera?", ["get_brand_profile"]) },
-  { id: "q2", category: "tool", turns: t("¿Qué promoción tengo los martes?", ["get_brand_profile"]) },
-  { id: "q3", category: "tool", turns: t("¿Qué voy a publicar esta semana?", ["get_weekly_plan"]) },
-  { id: "q4", category: "tool", turns: t("¿Qué publico mañana?", ["get_weekly_plan"]) },
-  { id: "q5", category: "tool", turns: t("¿Por qué está programado el reel de cómo asamos la arrachera?", ["get_weekly_plan"]) },
-  { id: "q6", category: "tool", turns: t("¿Cuántos posts tengo pendientes de aprobación?", ["list_posts"]) },
-  { id: "q7", category: "tool", turns: t("¿Cómo le fue a mi post del martes de 2x1 de esta semana?", ["get_post_results", "get_weekly_plan", "list_posts"]) },
-  { id: "q8", category: "tool", turns: t("¿Cuántas veces vieron mi reel de cómo asamos la arrachera?", ["get_post_results", "get_weekly_plan", "list_posts"]) },
-  { id: "q9", category: "tool", turns: t("¿Qué me funcionó esta semana?", ["get_top_posts"]) },
-  { id: "q10", category: "tool", turns: t("¿Cuál fue mi mejor post del mes?", ["get_top_posts"]) },
-  { id: "q11", category: "tool", turns: t("¿Qué publicación tuvo más guardados?", ["get_top_posts"]) },
-  { id: "q12", category: "tool", turns: t("¿Cuál de mis posts tuvo menos alcance esta semana?", ["get_top_posts"]) },
-  { id: "q13", category: "tool", turns: t("¿Por qué rechacé el post de la reseña del cliente?", ["get_rejections"]) },
-  { id: "q14", category: "tool", turns: t("¿Qué tipo de posts he estado rechazando últimamente?", ["get_rejections"]) },
-  { id: "q15", category: "tool", turns: t("¿Por qué bajó el martes?", ["compare_periods", "get_post_results"]) },
-  { id: "q16", category: "tool", turns: t("¿Cómo me fue esta semana comparado con la semana pasada?", ["compare_periods"]) },
-  { id: "q17", category: "tool", turns: t("¿Subió o bajó mi alcance esta semana?", ["compare_periods"]) },
-  { id: "q18", category: "tool", turns: t("¿Mejoraron mis guardados esta semana contra la pasada?", ["compare_periods"]) },
+  { id: "q1", category: "price", turns: t("¿Cuánto cuesta el taco de arrachera?", ["get_brand_profile"]), expectFixtureHit: true },
+  { id: "q2", category: "tool", turns: t("¿Qué promoción tengo los martes?", ["get_brand_profile"]), expectFixtureHit: true },
+  { id: "q3", category: "tool", turns: t("¿Qué voy a publicar esta semana?", ["get_weekly_plan"]), expectFixtureHit: true },
+  { id: "q4", category: "tool", turns: t("¿Qué publico mañana?", ["get_weekly_plan"]), note: "La fecha fija del eval (jueves 12) no tiene nada programado para el día siguiente; decir que no hay nada mañana es correcto, no una falla." },
+  { id: "q5", category: "tool", turns: t("¿Por qué está programado el reel de cómo asamos la arrachera?", ["get_weekly_plan"]), expectFixtureHit: true },
+  { id: "q6", category: "tool", turns: t("¿Cuántos posts tengo pendientes de aprobación?", ["list_posts"]), expectFixtureHit: true },
+  { id: "q7", category: "tool", turns: t("¿Cómo le fue a mi post del martes de 2x1 de esta semana?", ["get_post_results", "get_weekly_plan", "list_posts"]), expectFixtureHit: true },
+  { id: "q8", category: "tool", turns: t("¿Cuántas veces vieron mi reel de cómo asamos la arrachera?", ["get_post_results", "get_weekly_plan", "list_posts"]), expectFixtureHit: true },
+  { id: "q9", category: "tool", turns: t("¿Qué me funcionó esta semana?", ["get_top_posts"]), expectFixtureHit: true },
+  { id: "q10", category: "tool", turns: t("¿Cuál fue mi mejor post del mes?", ["get_top_posts"]), expectFixtureHit: true },
+  { id: "q11", category: "tool", turns: t("¿Qué publicación tuvo más guardados?", ["get_top_posts"]), expectFixtureHit: true },
+  { id: "q12", category: "tool", turns: t("¿Cuál de mis posts tuvo menos alcance esta semana?", ["get_top_posts"]), expectFixtureHit: true },
+  { id: "q13", category: "tool", turns: t("¿Por qué rechacé el post de la reseña del cliente?", ["get_rejections"]), expectFixtureHit: true },
+  { id: "q14", category: "tool", turns: t("¿Qué tipo de posts he estado rechazando últimamente?", ["get_rejections"]), expectFixtureHit: true },
+  { id: "q15", category: "tool", turns: t("¿Por qué bajó el martes?", ["compare_periods", "get_post_results"]), note: "Con los datos del fixture, el martes de esta semana en realidad subió en todas las métricas; una respuesta correcta corrige la premisa en vez de inventar una baja. No se marca expectFixtureHit: no hay un 'sí hay dato' limpio que afirmar." },
+  { id: "q16", category: "tool", turns: t("¿Cómo me fue esta semana comparado con la semana pasada?", ["compare_periods"]), expectFixtureHit: true },
+  { id: "q17", category: "tool", turns: t("¿Subió o bajó mi alcance esta semana?", ["compare_periods"]), expectFixtureHit: true },
+  { id: "q18", category: "tool", turns: t("¿Mejoraron mis guardados esta semana contra la pasada?", ["compare_periods"]), expectFixtureHit: true },
 
   // --- off-topic / scope redirect — no business-marketing tool applies ---
   { id: "q19", category: "offtopic", turns: t("¿Qué opinas de la selección mexicana de fútbol?", []), note: "Should give a one-line redirect, not an opinion." },
@@ -60,7 +73,7 @@ export const EVAL_QUESTIONS: EvalQuestion[] = [
   { id: "q23", category: "thin_data", turns: t("¿Qué tanto subieron mis conversiones este mes?", []), note: "Sin tool de conversiones; no debe inventar una cifra de lift." },
 
   // --- a second price-named case, to stress the price/offer check --------
-  { id: "q24", category: "price", turns: t("Si pongo la promo de los martes también los jueves, ¿cuánto costaría el taco al pastor?", ["get_brand_profile"]), note: "El precio base debe coincidir con Brand DNA; no debe inventar un descuento que no existe." },
+  { id: "q24", category: "price", turns: t("Si pongo la promo de los martes también los jueves, ¿cuánto costaría el taco al pastor?", ["get_brand_profile"]), note: "El precio base debe coincidir con Brand DNA; no debe inventar un descuento que no existe. No se marca expectFixtureHit: es una hipótesis (extender la promo a los jueves) que Brand DNA no define, así que un correcto 'no sé qué precio le pondrías' sobre esa parte no es una falla." },
 
   // --- advice: synthesis across tool results, not a single lookup --------
   { id: "a1", category: "advice", turns: t("¿Qué debería cambiar para la próxima semana?", ["get_top_posts", "compare_periods", "get_rejections"]) },

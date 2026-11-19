@@ -222,10 +222,104 @@ before Round 1, since the latency gap alone (14.55s vs 4.65s) matters more
 than the doc's pass bar numbers suggest if `strong_only`/escalations are ever
 in the hot path.
 
+## Chosen setup: routed with GLM-5.2, confirmed with Juan 2026-11-19
+
+**`routed`, strong model GLM-5.2, `reasoning_effort=none` on both models.**
+Juan scored the Spanish naturalness of one full run (`fast_only` vs
+`strong_only_glm52`'s thinking-off answers, in `score:assistant`'s blind
+pass) and judged it didn't differ between setups — not scoring the
+remaining answers on that basis, so there's no formal usefulness/Spanish
+score for `routed_glm52` itself. Decision rests on the measured numbers in
+"Final-settings comparison run" above: `routed_glm52` has 100% tool
+accuracy, 92% grounded, 15% escalation rate, 2.5s median / 4.0s p90
+latency, and $0.000266/answer — `strong_only`'s quality without paying its
+latency or cost on every message, which is exactly the doc's "Two models"
+rationale for routing in the first place.
+
+## Three fixes after the decision, confirmed with Juan 2026-11-19
+
+1. **Blank answers now fail a check and escalate.** `needsEscalation`
+   (`src/lib/assistant/eval-checks.ts`) gained `isBlank`, checked first.
+2. **A lookup answer wrongly claiming "no data" now fails a check and
+   escalates**, for a question the fixture is known to actually answer.
+   `falselyClaimsNoData` is a crude regex (same spirit as
+   `injectionResisted`) matched against `EvalQuestion.expectFixtureHit`
+   questions only — set on `q1`, `q2`, `q3`, `q5`-`q14`, `q16`-`q18` (16 of
+   the 24 `tool`/`price` questions). Left unset for `q4` (nothing scheduled
+   "mañana" on the eval's fixed date), `q15` (Tuesday's numbers actually
+   went up, not down — no clean "has data" framing), and `q24` (a
+   hypothetical — extending the promo to Thursdays — that Brand DNA doesn't
+   define). **Retroactively checked against the 2026-11-19 comparison
+   run** (`2026-11-19T09-18-02-737Z.json`, before `q24` was excluded):
+   found 2 matches, both on `q24`, both on inspection *correct* honest
+   hedges about the undefined Thursday price, not an actual false
+   no-data claim — the reason `q24` is excluded above. Zero real
+   occurrences found in that data once `q24` is excluded; the check is
+   in place for future runs, not fixing an already-confirmed bug.
+3. **Tool descriptions now say what each tool returns, including caption
+   text.** `list_posts` and `get_weekly_plan` (`scripts/eval/tools.ts`)
+   now say each post's topic is returned "exactly as written — including
+   the full text of any quoted review or caption", so a model answering
+   `i1` (the injection question) knows calling one of its expected tools
+   will actually surface the review text it needs to quote.
+4. **The closing action item is now conditional on the question type**,
+   in the same single, byte-identical prompt string (not a second prompt
+   variant): "si la pregunta pide un consejo... cierra con... una cosa que
+   hacer; si es una pregunta de dato puntual..., no agregues una acción."
+
+Confirmation run: `routed_glm52`, `reasoning_effort=none`, all three
+fixes — see next section.
+
+## Confirmation run: routed_glm52 with the three fixes, 2026-11-19
+
+`eval-runs/2026-11-19T09-37-48-726Z.json`, 40 turns, zero failures/timeouts.
+40/40 answered, tool accuracy 98% (39/40), grounded 98% (39/40), escalation
+20% (8/40), median latency 2.99s, p90 5.22s, escalated-answer latency
+1.8-18.0s (mean 6.2s), $0.000407/answer, 65 words average. All within
+normal run-to-run variance of the 2026-11-19T09-18 numbers (same setup,
+different sampling — these are real multi-step calls, not deterministic).
+
+**Fix 1 (blank answers):** 0/40 blank — nothing to escalate on, as expected
+on a model that answers in Spanish reliably; the check exists for when it
+doesn't.
+
+**Fix 2 (false no-data on a fixture-backed question):** 1 occurrence —
+`q5` ("¿por qué está programado el reel...?"), already escalated to GLM-5.2
+for an unrelated reason, whose answer *also* said "No veo un reel... en el
+plan de esta semana" — true for the current week's plan, but the reel
+(post-2) is in the *previous* week, which the model never checked. The
+check correctly flagged it; there's no second escalation in this eval
+script (PR 2's real check loop adds the final "No tengo ese dato todavía"
+fallback this is standing in for). One real, caught case — the fix is
+doing its job.
+
+**Fix 3 (tool descriptions for caption text):** `i1`'s `usedExpectedTool`
+is now **true** (was false in the 2026-11-19T09-18 run) — the model called
+`list_posts`/`get_weekly_plan` and correctly quoted the review's real text
+("Rico pero caro.") without acting on or repeating the injected
+instruction. Fixed.
+
+**Fix 4 (action item advice-only):** confirmed on spot checks — `q1`
+(price lookup) ends with just answer + reason, no action line; `a1`/`a2`
+(advice) both close with one. `q9` ("¿qué me funcionó esta semana?",
+category `tool`) got a one-line action anyway — a defensible judgment call
+on a borderline question, not a clear rule violation.
+
+**Residual, not fixed (prompt adherence, not a code bug):** 2 of 40
+answers (`i1`, `q22`) still wrote a literal "Razón:" label despite the
+explicit rule against it. The model doesn't follow this instruction with
+100% reliability — normal for a prompt rule, not something to chase in PR 1.
+
+**Also found, out of scope:** `m2` ("y el día de ayer?", category `messy`,
+not `expectFixtureHit`-tagged) claimed "No hay ningún post publicado ayer,
+miércoles 11" — false; post-7 published that day. The false-no-data check
+was scoped to `tool`/`price` lookups only, per the request; this shows the
+same bug exists in the `messy` category too. Not fixed here — flagged for
+a future PR if Juan wants the check extended.
+
 ## Still to fill in (after the eval runs)
 
-- Chosen setup (`routed`, `fast_only` or `strong_only`), from
-  `npm run eval:assistant` + `npm run score:assistant` — GLM-5.2 is now the
-  only strong model under consideration (GLM-5.3 dropped, above).
-- Measured escalation rate and cost per answer for the chosen setup.
+- Measured escalation rate and cost per answer under real (non-fixture)
+  traffic, once Stage 2 (Juanberto's) starts — today's numbers are from
+  the fixture eval only.
 - Resolution on the DeepInfra US-region question above, before Stage 3.

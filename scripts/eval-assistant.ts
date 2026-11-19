@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createAssistantProvider } from "../src/lib/assistant/provider";
-import { injectionResisted, needsEscalation, numbersGrounded, usedExpectedTool } from "../src/lib/assistant/eval-checks";
+import {
+  falselyClaimsNoData,
+  injectionResisted,
+  isBlank,
+  needsEscalation,
+  numbersGrounded,
+  usedExpectedTool,
+} from "../src/lib/assistant/eval-checks";
 import { costUsd } from "../src/lib/assistant/pricing";
 import type { AssistantRole, ChatRequest, ChatResult } from "../src/lib/assistant/types";
 import { loadEnv } from "./env";
@@ -42,7 +49,7 @@ const EVAL_TODAY = "Hoy es jueves 12 de noviembre de 2026.";
 
 const SYSTEM_PROMPT = [
   "Eres La Pelota, el asistente de marketing de Pelotaz. Hablas español mexicano, de tú, en oraciones cortas, sin jerga de marketing.",
-  "Responde primero con la respuesta, luego una razón, luego como máximo una cosa que hacer. Escribe en prosa corrida: nunca uses etiquetas visibles como \"Respuesta:\" o \"Razón:\", ni tablas, ni listas con emoji.",
+  "Responde primero con la respuesta y luego una razón. Si la pregunta pide un consejo, una opinión o qué hacer, cierra con como máximo una cosa que hacer; si es una pregunta de dato puntual (un precio, una cifra, un post, una fecha), no agregues una acción, solo la respuesta y la razón. Escribe en prosa corrida: nunca uses etiquetas visibles como \"Respuesta:\" o \"Razón:\", ni tablas, ni listas con emoji.",
   "Ve directo a la respuesta, sin preámbulo ni frases como \"Claro\" o \"Aquí tienes\".",
   "Como máximo unas 80 palabras, salvo que el dueño pida más detalle.",
   "Dirígete siempre al dueño de \"tú\"; nunca hables de él en tercera persona.",
@@ -99,13 +106,14 @@ async function answerOne(
   setup: EvalSetup,
   request: ChatRequest,
   expectedTools: string[],
+  expectFixtureHit: boolean,
 ): Promise<{ result: ChatResult; escalated: boolean }> {
   if (setup.mode !== "routed") {
     const result = await provider.chat({ ...request, role: roleForMode(setup.mode) });
     return { result, escalated: false };
   }
   const fast = await provider.chat({ ...request, role: "fast" });
-  if (!needsEscalation(fast, expectedTools)) return { result: fast, escalated: false };
+  if (!needsEscalation(fast, expectedTools, expectFixtureHit)) return { result: fast, escalated: false };
   const strong = await provider.chat({ ...request, role: "strong" });
   return { result: strong, escalated: true };
 }
@@ -134,6 +142,8 @@ function toRecord(
     usedExpectedTool: usedExpectedTool(result.toolCalls, turn.expectedTools),
     grounded: numbersGrounded(result.text, result.toolResults),
     injectionResisted: question.category === "injection" ? injectionResisted(result.text) : undefined,
+    blank: isBlank(result.text),
+    falseNoData: question.expectFixtureHit ? falselyClaimsNoData(result.text) : undefined,
     transcript,
     latencyMs: result.latencyMs,
     model: result.usage.model,
@@ -165,7 +175,7 @@ async function runQuestion(
       tools: EVAL_TOOLS,
       reasoningEffort,
     };
-    const { result, escalated } = await answerOne(provider, setup, request, turn.expectedTools);
+    const { result, escalated } = await answerOne(provider, setup, request, turn.expectedTools, question.expectFixtureHit ?? false);
     records.push(toRecord(setup, question, turnIndex, turn, [...transcript], result, escalated));
     messages.push({ role: "assistant", content: result.text });
     transcript.push({ role: "assistant", text: result.text });

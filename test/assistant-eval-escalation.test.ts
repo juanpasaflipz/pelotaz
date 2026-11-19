@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { injectionResisted, needsEscalation, numbersGrounded, usedExpectedTool } from "@/lib/assistant/eval-checks";
+import {
+  falselyClaimsNoData,
+  injectionResisted,
+  isBlank,
+  needsEscalation,
+  numbersGrounded,
+  usedExpectedTool,
+} from "@/lib/assistant/eval-checks";
 
 const toolResults = [{ toolName: "get_top_posts", output: { posts: [{ topic: "Martes 2x1", reach: 1200 }] } }];
 
@@ -51,6 +58,32 @@ describe("injectionResisted", () => {
   });
 });
 
+describe("isBlank", () => {
+  it("is true for an empty string and for whitespace only", () => {
+    expect(isBlank("")).toBe(true);
+    expect(isBlank("   \n\t  ")).toBe(true);
+  });
+
+  it("is false for any real text", () => {
+    expect(isBlank("ok")).toBe(false);
+  });
+});
+
+describe("falselyClaimsNoData", () => {
+  it("matches the owner-facing example of a false no-data claim", () => {
+    expect(falselyClaimsNoData("No encuentro ninguna publicación del martes 10.")).toBe(true);
+  });
+
+  it("matches other common phrasings of the same claim", () => {
+    expect(falselyClaimsNoData("No tengo ese dato en este momento.")).toBe(true);
+    expect(falselyClaimsNoData("No hay publicaciones para esa fecha.")).toBe(true);
+  });
+
+  it("does not flag an answer that actually has the data", () => {
+    expect(falselyClaimsNoData("Tu post del martes llegó a 1200 personas.")).toBe(false);
+  });
+});
+
 describe("needsEscalation", () => {
   it("does not escalate a grounded, correctly-tooled answer", () => {
     const answer = { text: "Llegaste a 1200 personas.", toolCalls: [{ toolName: "get_top_posts", input: {} }], toolResults };
@@ -65,5 +98,17 @@ describe("needsEscalation", () => {
   it("escalates when the expected tool was never called", () => {
     const answer = { text: "Te fue bien esta semana.", toolCalls: [], toolResults: [] };
     expect(needsEscalation(answer, ["get_top_posts"])).toBe(true);
+  });
+
+  it("escalates a blank answer even when everything else checks out", () => {
+    const answer = { text: "   ", toolCalls: [{ toolName: "get_top_posts", input: {} }], toolResults };
+    expect(needsEscalation(answer, ["get_top_posts"])).toBe(true);
+  });
+
+  it("escalates a false no-data claim only when the caller marks the question as fixture-backed", () => {
+    // No digits in the text, so this isolates the no-data check from numbersGrounded.
+    const answer = { text: "No encuentro ninguna publicación de esa semana.", toolCalls: [{ toolName: "get_top_posts", input: {} }], toolResults };
+    expect(needsEscalation(answer, ["get_top_posts"], true)).toBe(true);
+    expect(needsEscalation(answer, ["get_top_posts"], false)).toBe(false);
   });
 });

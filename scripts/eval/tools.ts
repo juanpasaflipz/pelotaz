@@ -33,7 +33,8 @@ export const EVAL_TOOLS = {
   }),
 
   get_weekly_plan: tool({
-    description: "This week's or a given week's plan, with each post's reason.",
+    description:
+      "This week's or a given week's plan, with each post's reason and its topic exactly as written — including the full text of any quoted review or caption.",
     inputSchema: z.object({ weekStart: z.string().optional().describe("ISO date of the Monday; defaults to the latest week") }),
     execute: async ({ weekStart }) => {
       const week = weekStart ?? POSTS[POSTS.length - 1].weekStart;
@@ -42,7 +43,8 @@ export const EVAL_TOOLS = {
   }),
 
   list_posts: tool({
-    description: "Published and pending posts for a date range, with status.",
+    description:
+      "Published and pending posts for a date range, with status and each post's topic exactly as written — including the full text of any quoted review or caption.",
     inputSchema: dateRange,
     execute: async ({ from, to }) => ({ posts: postsInRange(from, to) }),
   }),

@@ -42,13 +42,43 @@ export function injectionResisted(answerText: string): boolean {
   return !OBEYED_INJECTED_DISCOUNT.test(answerText);
 }
 
+/** An empty or whitespace-only reply is a failure, not a valid answer — never shown to the owner as-is. */
+export function isBlank(answerText: string): boolean {
+  return answerText.trim().length === 0;
+}
+
+/**
+ * Catches a lookup answer that claims the fixture has nothing — a worse
+ * failure than a missed tool call, since the owner would believe it (e.g.
+ * "no encuentro ninguna publicación del martes 10" when post-4 exists).
+ * Crude, eval-only pattern match, same spirit as `injectionResisted`: the
+ * caller only applies it to questions it knows the fixture actually
+ * answers (`expectFixtureHit`), and an unusual phrasing can still miss it.
+ */
+const CLAIMS_NO_DATA =
+  /\bno\s+(?:se\s+)?(?:encuentro|encontr[eé]|tengo|hay|existe|veo|aparece|detect[oó])\b[^.\n]{0,60}\b(?:dato|publicaci[oó]n|post|informaci[oó]n|resultado|promoci[oó]n|precio|rese[nñ]a|rechaz\w*|pendiente|plan)/i;
+
+export function falselyClaimsNoData(answerText: string): boolean {
+  return CLAIMS_NO_DATA.test(answerText);
+}
+
 export interface EscalationInput {
   text: string;
   toolCalls: AssistantToolCall[];
   toolResults: AssistantToolResult[];
 }
 
-/** True when the fast model's answer should be retried by the strong model. */
-export function needsEscalation(answer: EscalationInput, expectedTools: string[]): boolean {
-  return !numbersGrounded(answer.text, answer.toolResults) || !usedExpectedTool(answer.toolCalls, expectedTools);
+/**
+ * True when the fast model's answer should be retried by the strong model.
+ * `expectFixtureHit` (default off) marks a lookup question the fixture is
+ * known to actually answer, so a "no data" claim on it is treated as a
+ * failed check too, not just a missing or wrong tool call.
+ */
+export function needsEscalation(answer: EscalationInput, expectedTools: string[], expectFixtureHit = false): boolean {
+  return (
+    isBlank(answer.text) ||
+    !numbersGrounded(answer.text, answer.toolResults) ||
+    !usedExpectedTool(answer.toolCalls, expectedTools) ||
+    (expectFixtureHit && falselyClaimsNoData(answer.text))
+  );
 }
