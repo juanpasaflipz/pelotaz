@@ -63,6 +63,7 @@ export interface EvalAnswerRecord {
   inputTokens: number | null;
   outputTokens: number | null;
   cachedInputTokens: number | null;
+  reasoningTokens: number | null;
   costUsd: number;
 }
 

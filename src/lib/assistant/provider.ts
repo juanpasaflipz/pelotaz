@@ -83,6 +83,12 @@ async function callOnce(
         tools: request.tools,
         stopWhen: stepCountIs(request.maxToolSteps ?? config.maxToolSteps),
         abortSignal: controller.signal,
+        // The AI SDK's own retry (default: 2, i.e. 3 attempts) would stack
+        // underneath chat()'s own single retry below, so a transient error
+        // could cost far more than "one retry" and blow past timeoutMs
+        // multiple times over. Disabled here so chat()'s retry is the only one.
+        maxRetries: 0,
+        ...(request.reasoningEffort ? { providerOptions: { openai: { reasoningEffort: request.reasoningEffort } } } : {}),
       }),
       timeout,
     ]);
@@ -131,6 +137,7 @@ export function createAssistantProvider(
           inputTokens: result.usage.inputTokens ?? null,
           outputTokens: result.usage.outputTokens ?? null,
           cachedInputTokens: result.usage.inputTokenDetails?.cacheReadTokens ?? null,
+          reasoningTokens: result.usage.outputTokenDetails?.reasoningTokens ?? null,
         },
         latencyMs: Date.now() - started,
         role,

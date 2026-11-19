@@ -1,5 +1,5 @@
 import { MockLanguageModelV4 } from "ai/test";
-import { tool } from "ai";
+import { APICallError, tool } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { AssistantProviderUnavailableError, createAssistantProvider } from "@/lib/assistant/provider";
@@ -17,13 +17,13 @@ const BASE_CONFIG: AssistantConfig = {
   timeoutMs: 1000,
 };
 
-function textResult(text: string, finishReason: "stop" | "error" = "stop") {
+function textResult(text: string, finishReason: "stop" | "error" = "stop", reasoningTokens?: number) {
   return {
     content: [{ type: "text" as const, text }],
     finishReason: { unified: finishReason, raw: undefined },
     usage: {
       inputTokens: { total: 10, noCache: 6, cacheRead: 4, cacheWrite: undefined },
-      outputTokens: { total: 20, text: 20, reasoning: undefined },
+      outputTokens: { total: 20, text: 20, reasoning: reasoningTokens },
     },
     warnings: [],
   };
@@ -87,8 +87,35 @@ describe("createAssistantProvider: usage and tokens", () => {
       inputTokens: 10,
       outputTokens: 20,
       cachedInputTokens: 4,
+      reasoningTokens: null,
     });
     expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it("maps reasoning tokens onto the usage record when the model reports them", async () => {
+    const { resolveModel } = fakeModels({ strong: textResult("ok", "stop", 137) });
+    const provider = createAssistantProvider(BASE_CONFIG, resolveModel);
+    const result = await provider.chat({ purpose: "chat.answer", role: "strong", messages: [{ role: "user", content: "hola" }] });
+    expect(result.usage.reasoningTokens).toBe(137);
+  });
+
+  it("forwards reasoningEffort to providerOptions.openai for the underlying call", async () => {
+    const seen: unknown[] = [];
+    const resolveModel = () =>
+      new MockLanguageModelV4({
+        doGenerate: async (options) => {
+          seen.push(options.providerOptions);
+          return textResult("ok");
+        },
+      });
+    const provider = createAssistantProvider(BASE_CONFIG, resolveModel);
+    await provider.chat({
+      purpose: "eval.chat",
+      role: "strong",
+      messages: [{ role: "user", content: "hola" }],
+      reasoningEffort: "none",
+    });
+    expect(seen).toEqual([{ openai: { reasoningEffort: "none" } }]);
   });
 });
 
@@ -116,6 +143,32 @@ describe("createAssistantProvider: timeout and retry", () => {
         doGenerate: async () => {
           attempts += 1;
           throw new Error("provider is down");
+        },
+      });
+    const provider = createAssistantProvider(BASE_CONFIG, resolveModel);
+    await expect(
+      provider.chat({ purpose: "chat.answer", role: "fast", messages: [{ role: "user", content: "hola" }] }),
+    ).rejects.toThrow(AssistantProviderUnavailableError);
+    expect(attempts).toBe(2);
+  });
+
+  it("does not let the AI SDK's own retry stack on top of chat()'s one retry", async () => {
+    // A retryable APICallError (e.g. DeepInfra 429/5xx) would otherwise make
+    // the AI SDK retry internally (default maxRetries: 2, so 3 attempts)
+    // inside each of chat()'s own two callOnce attempts — up to 6 total.
+    // maxRetries: 0 on the generateText call keeps it at exactly 2.
+    let attempts = 0;
+    const resolveModel = () =>
+      new MockLanguageModelV4({
+        doGenerate: async () => {
+          attempts += 1;
+          throw new APICallError({
+            message: "rate limited",
+            url: "https://api.deepinfra.com/v1/openai/chat/completions",
+            requestBodyValues: {},
+            statusCode: 429,
+            isRetryable: true,
+          });
         },
       });
     const provider = createAssistantProvider(BASE_CONFIG, resolveModel);

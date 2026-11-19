@@ -28,6 +28,7 @@ export interface AssistantUsage {
   inputTokens: number | null;
   outputTokens: number | null;
   cachedInputTokens: number | null;
+  reasoningTokens: number | null;
 }
 
 export interface ChatRequest {
@@ -45,6 +46,13 @@ export interface ChatRequest {
   tools?: ToolSet;
   /** Overrides `ASSISTANT_MAX_TOOL_STEPS` for this call. */
   maxToolSteps?: number;
+  /**
+   * Forwarded as `providerOptions.openai.reasoningEffort`, which DeepInfra's
+   * OpenAI-compatible endpoint serializes to the request body's top-level
+   * `reasoning_effort`. Only meaningful for reasoning models (GLM-5.2); the
+   * fast model ignores it. Omit to use the model's default.
+   */
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high";
 }
 
 export interface ChatResult {

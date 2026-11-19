@@ -21,6 +21,8 @@ import { EVAL_TOOLS } from "./eval/tools";
  *   npm run eval:assistant -- --setups=fast_only,routed_glm52
  *   npm run eval:assistant -- --include-optional       also runs GLM-5.3-Flash as an alt fast model
  *   npm run eval:assistant -- --max-tool-steps=6
+ *   npm run eval:assistant -- --questions=a1,a2,q1,q9   only these question ids
+ *   npm run eval:assistant -- --reasoning-effort=none   forwarded to every call as ChatRequest.reasoningEffort
  */
 
 function flag(name: string): string | undefined {
@@ -73,6 +75,18 @@ function providerFor(setup: EvalSetup) {
   });
 }
 
+const REASONING_EFFORTS = ["none", "minimal", "low", "medium", "high"] as const;
+
+function reasoningEffortFlag(): ChatRequest["reasoningEffort"] {
+  const raw = flag("reasoning-effort");
+  if (raw === undefined) return undefined;
+  if (!(REASONING_EFFORTS as readonly string[]).includes(raw)) {
+    console.error(`--reasoning-effort must be one of ${REASONING_EFFORTS.join(", ")}, got "${raw}".`);
+    process.exit(1);
+  }
+  return raw as ChatRequest["reasoningEffort"];
+}
+
 async function answerOne(
   provider: ReturnType<typeof providerFor>,
   setup: EvalSetup,
@@ -119,11 +133,17 @@ function toRecord(
     inputTokens: result.usage.inputTokens,
     outputTokens: result.usage.outputTokens,
     cachedInputTokens: result.usage.cachedInputTokens,
+    reasoningTokens: result.usage.reasoningTokens,
     costUsd: costUsd(result.usage, result.usage.cachedInputTokens ?? 0),
   };
 }
 
-async function runQuestion(provider: ReturnType<typeof providerFor>, setup: EvalSetup, question: EvalQuestion): Promise<EvalAnswerRecord[]> {
+async function runQuestion(
+  provider: ReturnType<typeof providerFor>,
+  setup: EvalSetup,
+  question: EvalQuestion,
+  reasoningEffort: ChatRequest["reasoningEffort"],
+): Promise<EvalAnswerRecord[]> {
   const messages: ChatRequest["messages"] = [{ role: "system", content: SYSTEM_PROMPT }];
   const transcript: TranscriptTurn[] = [];
   const records: EvalAnswerRecord[] = [];
@@ -131,7 +151,13 @@ async function runQuestion(provider: ReturnType<typeof providerFor>, setup: Eval
   for (const [turnIndex, turn] of question.turns.entries()) {
     messages.push({ role: "user", content: turn.text });
     transcript.push({ role: "user", text: turn.text });
-    const request: ChatRequest = { purpose: "eval.chat", role: roleForMode(setup.mode), messages: [...messages], tools: EVAL_TOOLS };
+    const request: ChatRequest = {
+      purpose: "eval.chat",
+      role: roleForMode(setup.mode),
+      messages: [...messages],
+      tools: EVAL_TOOLS,
+      reasoningEffort,
+    };
     const { result, escalated } = await answerOne(provider, setup, request, turn.expectedTools);
     records.push(toRecord(setup, question, turnIndex, turn, [...transcript], result, escalated));
     messages.push({ role: "assistant", content: result.text });
@@ -164,14 +190,28 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Running ${EVAL_QUESTIONS.length} questions × ${setups.length} setup(s): ${setups.map((s) => s.name).join(", ")}\n`);
+  const requestedQuestions = flag("questions")?.split(",");
+  const questions = requestedQuestions ? EVAL_QUESTIONS.filter((q) => requestedQuestions.includes(q.id)) : EVAL_QUESTIONS;
+  if (requestedQuestions && questions.length !== requestedQuestions.length) {
+    const found = new Set(questions.map((q) => q.id));
+    console.error("Unknown --questions id(s): " + requestedQuestions.filter((id) => !found.has(id)).join(", "));
+    process.exit(1);
+  }
+
+  const reasoningEffort = reasoningEffortFlag();
+
+  console.log(
+    `Running ${questions.length} questions × ${setups.length} setup(s): ${setups.map((s) => s.name).join(", ")}` +
+      (reasoningEffort ? ` (reasoningEffort=${reasoningEffort})` : "") +
+      "\n",
+  );
 
   const answers: EvalAnswerRecord[] = [];
   for (const setup of setups) {
     const provider = providerFor(setup);
-    for (const question of EVAL_QUESTIONS) {
+    for (const question of questions) {
       try {
-        const records = await runQuestion(provider, setup, question);
+        const records = await runQuestion(provider, setup, question, reasoningEffort);
         answers.push(...records);
         for (const record of records) {
           console.log(

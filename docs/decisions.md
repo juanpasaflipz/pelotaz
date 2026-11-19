@@ -143,6 +143,55 @@ could accumulate open connections in a long-running server process under
 sustained timeouts — worth checking DeepInfra's/undici's connection pooling
 behavior under load before shipping the live chat route.
 
+## AI SDK's own retry was stacking under chat()'s retry, confirmed 2026-11-19
+
+`generateText` was never given a `maxRetries`, so the AI SDK's default (2
+retries, 3 attempts) ran *inside* every `callOnce`, underneath `chat()`'s own
+outer one-retry in its `catch` block — on a retryable provider error (e.g. a
+DeepInfra 429/5xx), a single `chat()` call could have cost up to 3 × 2 = 6
+attempts, each still inside the same `timeoutMs` race. Fixed by passing
+`maxRetries: 0` to `generateText` in `callOnce`, so the AI SDK makes exactly
+one attempt per `callOnce` and `chat()`'s own retry is the only one that
+applies. `abortSignal` was already passed into `generateText` (unchanged).
+Covered by a new regression test in `test/assistant-provider.test.ts`
+("does not let the AI SDK's own retry stack on top of chat()'s one retry"),
+using a `APICallError` with `isRetryable: true` to simulate a provider error
+the SDK would otherwise retry on its own.
+
+## GLM-5.2 reasoning: on by default, confirmed 2026-11-19
+
+Open question from the 2026-11-18 run: `chat()` never captured
+`usage.outputTokenDetails.reasoningTokens` (or AI SDK's separate `reasoning`
+string), so there was no way to tell from existing eval data whether GLM-5.2
+was thinking. Fixed in `src/lib/assistant/provider.ts` (now stored as
+`AssistantUsage.reasoningTokens`) and added `ChatRequest.reasoningEffort`,
+forwarded as `providerOptions.openai.reasoningEffort` → DeepInfra's top-level
+`reasoning_effort` body field (confirmed against
+`docs.deepinfra.com/chat/reasoning`: accepts `none | low | medium | high`,
+`none` disables chain-of-thought entirely).
+
+Ran `strong_only_glm52` on 8 questions (4 lookups: `q1`, `q6`, `q9`, `q15`; 4
+advice: `a1`-`a4`) once with current (default) settings and once with
+`--reasoning-effort=none`:
+
+| | Default (thinking on) | `reasoning_effort: none` |
+|---|---|---|
+| Avg output tokens | 797 | 310 |
+| Avg reasoning tokens | 519 (65% of output) | 0 |
+| Avg latency | 14.55s | 4.65s |
+| Tool accuracy | 8/8 | 8/8 |
+| Grounded | 8/8 | 8/8 |
+| Avg cost/answer | $0.00253 | $0.00145 |
+
+GLM-5.2 is thinking by default on DeepInfra, costing roughly 3x the latency
+and 1.75x the cost per answer for no measured difference in tool accuracy or
+grounding on this small sample. Not conclusive on 8 questions — doesn't touch
+Spanish naturalness or advice usefulness (needs `score:assistant`) — but
+worth a full eval run (all setups) with `reasoning_effort: "none"` or `"low"`
+before Round 1, since the latency gap alone (14.55s vs 4.65s) matters more
+than the doc's pass bar numbers suggest if `strong_only`/escalations are ever
+in the hot path.
+
 ## Still to fill in (after the eval runs)
 
 - Chosen setup (`routed`, `fast_only` or `strong_only`), from

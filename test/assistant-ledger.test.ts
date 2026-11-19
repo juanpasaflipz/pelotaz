@@ -24,6 +24,7 @@ const usage = (over: Partial<AssistantUsage> = {}): AssistantUsage => ({
   inputTokens: 6000,
   outputTokens: 400,
   cachedInputTokens: null,
+  reasoningTokens: null,
   ...over,
 });
 
