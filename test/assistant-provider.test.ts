@@ -198,6 +198,26 @@ describe("createAssistantProvider: timeout and retry", () => {
     // 400ms delay would have resolved it on its own.
     expect(Date.now() - started).toBeLessThan(400);
   });
+
+  it("still passes a real AbortSignal into generateText, which does fire when the timeout elapses", async () => {
+    // The Promise.race above is what *guarantees* callOnce settles on time;
+    // this proves the belt-and-suspenders abortSignal is still wired up
+    // underneath it, not dropped in favor of the race alone.
+    let lastSignal: AbortSignal | undefined;
+    const resolveModel = () =>
+      new MockLanguageModelV4({
+        doGenerate: (options) => {
+          lastSignal = options.abortSignal;
+          return new Promise((resolve) => setTimeout(() => resolve(textResult("tarde")), 400));
+        },
+      });
+    const provider = createAssistantProvider({ ...BASE_CONFIG, timeoutMs: 30 }, resolveModel);
+    await expect(
+      provider.chat({ purpose: "chat.answer", role: "fast", messages: [{ role: "user", content: "hola" }] }),
+    ).rejects.toThrow(AssistantProviderUnavailableError);
+    expect(lastSignal).toBeInstanceOf(AbortSignal);
+    expect(lastSignal?.aborted).toBe(true);
+  });
 });
 
 describe("createAssistantProvider: tool calls", () => {
