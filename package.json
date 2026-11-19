@@ -16,6 +16,8 @@
     "db:seed": "node scripts/check-node.cjs && tsx scripts/seed.ts",
     "db:seed:demo": "node scripts/check-node.cjs && tsx scripts/seed-demo.ts",
     "try": "node scripts/check-node.cjs && tsx scripts/try.ts",
+    "eval:assistant": "node scripts/check-node.cjs && tsx scripts/eval-assistant.ts",
+    "score:assistant": "node scripts/check-node.cjs && tsx scripts/score-eval.ts",
     "predev": "node scripts/check-node.cjs",
     "prebuild": "node scripts/check-node.cjs",
     "pretest": "node scripts/check-node.cjs"

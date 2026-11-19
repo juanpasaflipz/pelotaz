@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# assistant eval output: real model answers and scores, not for commit
+/eval-runs
+
 # next.js
 /.next/
 /out/
