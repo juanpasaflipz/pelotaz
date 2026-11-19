@@ -14,6 +14,7 @@ const BASE_CONFIG: AssistantConfig = {
   modelStrong: "zai-org/GLM-5.2",
   mode: "routed",
   maxToolSteps: 4,
+  maxToolCalls: 6,
   timeoutMs: 1000,
 };
 
@@ -239,6 +240,51 @@ describe("createAssistantProvider: tool calls", () => {
     expect(result.toolResults).toEqual([{ toolName: "get_brand_profile", output: { name: "La Brasa", offers: [] } }]);
     expect(result.text).toBe("La Brasa vende tacos al carbón.");
   });
+
+  it("stops once total tool calls across steps reach maxToolCalls, even under the step limit", async () => {
+    // Reproduces docs/decisions.md's finding: a run making several parallel
+    // tool calls per step can hit 10 total calls within a 4-step limit.
+    // Two steps of 3 parallel calls each reach maxToolCalls (6) well before
+    // maxToolSteps (4), so a third doGenerate call should never happen.
+    const ping = tool({
+      description: "Returns pong.",
+      inputSchema: z.object({}),
+      execute: async () => ({ pong: true }),
+    });
+
+    let step = 0;
+    const resolveModel = () =>
+      new MockLanguageModelV4({
+        doGenerate: async () => {
+          step += 1;
+          return {
+            content: [1, 2, 3].map((n) => ({
+              type: "tool-call" as const,
+              toolCallId: `step${step}-${n}`,
+              toolName: "ping",
+              input: "{}",
+            })),
+            finishReason: { unified: "tool-calls" as const, raw: undefined },
+            usage: {
+              inputTokens: { total: 8, noCache: 8, cacheRead: undefined, cacheWrite: undefined },
+              outputTokens: { total: 15, text: 15, reasoning: undefined },
+            },
+            warnings: [],
+          };
+        },
+      });
+
+    const provider = createAssistantProvider({ ...BASE_CONFIG, maxToolSteps: 4, maxToolCalls: 6 }, resolveModel);
+    const result = await provider.chat({
+      purpose: "chat.answer",
+      role: "fast",
+      messages: [{ role: "user", content: "hola" }],
+      tools: { ping },
+    });
+
+    expect(result.toolCalls).toHaveLength(6);
+    expect(step).toBe(2);
+  });
 });
 
 describe("createAssistantProvider: prompt cache contract", () => {
@@ -273,17 +319,19 @@ describe("assistantConfigFromEnv", () => {
     expect(() => assistantConfigFromEnv()).toThrow(AssistantNotConfiguredError);
   });
 
-  it("defaults to routed, 4 tool steps and a 20s timeout", () => {
+  it("defaults to routed, 4 tool steps, 6 tool calls and a 20s timeout", () => {
     vi.stubEnv("ASSISTANT_BASE_URL", "https://api.deepinfra.com/v1/openai");
     vi.stubEnv("ASSISTANT_API_KEY", "key");
     vi.stubEnv("ASSISTANT_MODEL_FAST", "a");
     vi.stubEnv("ASSISTANT_MODEL_STRONG", "b");
     vi.stubEnv("ASSISTANT_MODE", "");
     vi.stubEnv("ASSISTANT_MAX_TOOL_STEPS", "");
+    vi.stubEnv("ASSISTANT_MAX_TOOL_CALLS", "");
     vi.stubEnv("ASSISTANT_TIMEOUT_MS", "");
     const config = assistantConfigFromEnv();
     expect(config.mode).toBe("routed");
     expect(config.maxToolSteps).toBe(4);
+    expect(config.maxToolCalls).toBe(6);
     expect(config.timeoutMs).toBe(20_000);
   });
 });

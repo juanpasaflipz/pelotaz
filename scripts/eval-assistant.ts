@@ -21,6 +21,7 @@ import { EVAL_TOOLS } from "./eval/tools";
  *   npm run eval:assistant -- --setups=fast_only,routed_glm52
  *   npm run eval:assistant -- --include-optional       also runs GLM-5.3-Flash as an alt fast model
  *   npm run eval:assistant -- --max-tool-steps=6
+ *   npm run eval:assistant -- --max-tool-calls=10        total tool calls across all steps, default 6
  *   npm run eval:assistant -- --questions=a1,a2,q1,q9   only these question ids
  *   npm run eval:assistant -- --reasoning-effort=none   forwarded to every call as ChatRequest.reasoningEffort
  */
@@ -76,6 +77,7 @@ function providerFor(setup: EvalSetup) {
     modelStrong: setup.modelStrong,
     mode: setup.mode,
     maxToolSteps: Number(flag("max-tool-steps")) || Number(process.env.ASSISTANT_MAX_TOOL_STEPS) || 4,
+    maxToolCalls: Number(flag("max-tool-calls")) || Number(process.env.ASSISTANT_MAX_TOOL_CALLS) || 6,
     timeoutMs: Number(process.env.ASSISTANT_TIMEOUT_MS) || 20_000,
   });
 }

@@ -46,6 +46,8 @@ export interface ChatRequest {
   tools?: ToolSet;
   /** Overrides `ASSISTANT_MAX_TOOL_STEPS` for this call. */
   maxToolSteps?: number;
+  /** Overrides `ASSISTANT_MAX_TOOL_CALLS` for this call. */
+  maxToolCalls?: number;
   /**
    * Forwarded as `providerOptions.openai.reasoningEffort`, which DeepInfra's
    * OpenAI-compatible endpoint serializes to the request body's top-level

@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, stepCountIs, type LanguageModel } from "ai";
+import { generateText, stepCountIs, type LanguageModel, type StopCondition, type ToolSet } from "ai";
 import { assistantConfigFromEnv, type AssistantConfig } from "./config";
 import type { AssistantMode, AssistantRole, ChatRequest, ChatResult } from "./types";
 
@@ -46,6 +46,17 @@ export interface AssistantProvider {
 class CallTimedOutError extends Error {}
 
 /**
+ * `stepCountIs` alone doesn't bound the total: a single step can hold
+ * several parallel tool calls, and a run was measured making 10 total tool
+ * calls within a 4-step limit (see docs/decisions.md). This sums
+ * `toolCalls` across every completed step and stops the loop once `limit`
+ * is reached, same as `stepCountIs` but counting calls instead of steps.
+ */
+function toolCallCountReaches(limit: number): StopCondition<ToolSet> {
+  return ({ steps }) => steps.reduce((total, step) => total + step.toolCalls.length, 0) >= limit;
+}
+
+/**
  * Bounds the whole call — every tool-calling step inside one `generateText`
  * run, not just its first request — to `config.timeoutMs`. `abortSignal`
  * alone was not enough: a run with docs/pelota-assistant.md's fixture that
@@ -81,7 +92,10 @@ async function callOnce(
         // prompt-cache contract.
         allowSystemInMessages: true,
         tools: request.tools,
-        stopWhen: stepCountIs(request.maxToolSteps ?? config.maxToolSteps),
+        stopWhen: [
+          stepCountIs(request.maxToolSteps ?? config.maxToolSteps),
+          toolCallCountReaches(request.maxToolCalls ?? config.maxToolCalls),
+        ],
         abortSignal: controller.signal,
         // The AI SDK's own retry (default: 2, i.e. 3 attempts) would stack
         // underneath chat()'s own single retry below, so a transient error

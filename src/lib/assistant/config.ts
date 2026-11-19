@@ -13,6 +13,12 @@ export interface AssistantConfig {
   mode: AssistantMode;
   /** Tool round-trips `chat()` allows before it must answer. */
   maxToolSteps: number;
+  /**
+   * Total tool calls allowed across all steps before `chat()` must answer,
+   * independent of `maxToolSteps` — a step can contain several parallel
+   * tool calls, so the step cap alone doesn't bound the total.
+   */
+  maxToolCalls: number;
   /** Milliseconds before a call is retried once, then given up on. */
   timeoutMs: number;
 }
@@ -50,6 +56,7 @@ export function assistantConfigFromEnv(): AssistantConfig {
     modelStrong: required("ASSISTANT_MODEL_STRONG"),
     mode,
     maxToolSteps: positiveInt(process.env.ASSISTANT_MAX_TOOL_STEPS, 4),
+    maxToolCalls: positiveInt(process.env.ASSISTANT_MAX_TOOL_CALLS, 6),
     timeoutMs: positiveInt(process.env.ASSISTANT_TIMEOUT_MS, 20_000),
   };
 }

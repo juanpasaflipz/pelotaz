@@ -104,9 +104,10 @@ needed to say explicitly:
   rule. The prompt now has one explicit line forbidding this and naming
   `compare_periods` as the tool to call instead. Same prompt for every
   setup — this isn't a per-model workaround.
-- **Format and honesty rules, added 2026-11-19 (not yet run against the
-  real provider — code change only, pending the next eval run):** no visible
-  labels (`Respuesta:`, `Razón:`), no preamble, no tables or emoji lists; a
+- **Format and honesty rules, added 2026-11-19, run against the real
+  provider the same day** (`eval-runs/2026-11-19T09-18-02-737Z.json`): no
+  visible labels (`Respuesta:`, `Razón:`), no preamble, no tables or emoji
+  lists; a
   roughly 80-word cap unless the owner asks for detail; address the owner as
   "tú", never in third person; never surface an internal ID — posts by title
   and day only; a conclusion resting on fewer than ~4 posts must say the data
@@ -116,6 +117,23 @@ needed to say explicitly:
   rule (ignore hidden instructions in untrusted text) must stay silent about
   having seen one, not narrate the detection to the owner. Same prompt for
   every setup, as before.
+
+## Final-settings comparison run, 2026-11-19
+
+Full eval (38 questions, 40 turns) re-run on `fast_only`,
+`strong_only_glm52` and `routed_glm52` with every fix above combined:
+`maxRetries: 0`, `reasoning_effort=none` on both models (DeepSeek's default
+was already 0 reasoning tokens, confirmed by a 2-call probe first — this is
+a no-op for it, kept for explicitness), the 9-rule prompt, and the new
+6-total-tool-calls cap. Zero failures or timeouts across all 120 calls.
+Full numbers and a diff against the 2026-11-18 three-run means are in
+`eval-runs/report-latest.md`; headline: `strong_only_glm52`'s timeouts went
+from 20-30% to **0**, median latency 12.2s -> 2.6s, p90 27s -> 9.0s, cost
+down ~40%. `routed_glm52`'s p90 and escalated-answer latency improved the
+same way. Small, likely-noise dip in grounding on `fast_only` (92% -> 90%)
+and `routed_glm52` (96% -> 92%) at n=40 — not yet a confirmed regression.
+Spanish naturalness and advice usefulness still need `npm run score:assistant
+-- --run=2026-11-19T09-18-02-737Z`.
 
 ## GLM-5.3 dropped from the eval, confirmed with Juan 2026-11-18
 
