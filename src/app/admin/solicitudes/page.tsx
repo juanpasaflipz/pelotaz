@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
@@ -16,6 +17,11 @@ export default function RequestsPage() {
     <main className="mx-auto max-w-4xl px-5 pb-24 pt-10">
       <h1 className="display text-5xl">{es.admin.title}</h1>
       <p className="mt-3 max-w-prose text-tinta-suave">{es.admin.lead}</p>
+      <p className="mt-3">
+        <Link href="/admin/embudo" className="font-semibold underline underline-offset-4">
+          {es.admin.funnelLink}
+        </Link>
+      </p>
       <Suspense fallback={<div className="mt-8 h-40 rounded bg-borde/50" aria-hidden />}>
         <Requests />
       </Suspense>

@@ -25,6 +25,7 @@ import { ScrollOnLoad } from "@/components/marketing/scroll-on-load";
 import { StatusChip } from "@/components/marketing/status-chip";
 import { TrackedLink } from "@/components/marketing/track";
 import { es } from "@/i18n/es";
+import { selfServeFromEnv } from "@/lib/access-requests";
 import { guias, GUIDE_SLUGS } from "@/i18n/guias";
 
 const t = es.marketing;
@@ -141,7 +142,7 @@ function SectionNav() {
           event="nav_button"
           className="button button-primary flex-none !min-h-9 !px-3 !py-1 text-sm"
         >
-          {t.nav.cta}
+          {selfServeFromEnv().enabled ? es.landing.selfServe.cta : t.nav.cta}
         </TrackedLink>
       </div>
     </nav>
@@ -165,7 +166,7 @@ function Hero({ outfit }: { outfit: Outfit }) {
                 event="hero_button"
                 className="button button-primary"
               >
-                {t.hero.cta}
+                {selfServeFromEnv().enabled ? es.landing.selfServe.cta : t.hero.cta}
               </TrackedLink>
               <HeroReelButton>{t.hero.secondary}</HeroReelButton>
             </div>
@@ -572,8 +573,10 @@ function Closing({ source }: { source?: "beta" | "empieza" }) {
           <p className="mt-4 max-w-md text-lg">{t.closing.lead}</p>
         </div>
         <div>
-          <h3 className="display text-3xl">{es.landing.formTitle}</h3>
-          <AccessRequestForm source={source} />
+          <h3 className="display text-3xl">
+            {selfServeFromEnv().enabled ? es.landing.selfServe.formTitle : es.landing.formTitle}
+          </h3>
+          <AccessRequestForm source={source} selfServe={selfServeFromEnv().enabled} />
         </div>
       </div>
     </section>

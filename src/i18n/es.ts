@@ -113,8 +113,8 @@ export const es = {
         },
         publishing: {
           title: "Publicación automática en Instagram y Facebook",
-          body: "Apruebas y se publica solo, a la hora indicada.",
-          note: "En revisión con Meta",
+          body: "Hoy apruebas, copias y publicas con un toque. Muy pronto se publica solo, a la hora indicada.",
+          note: "Automático: en revisión con Meta",
         },
         whatsapp: {
           title: "Aprobar todo por WhatsApp",
@@ -470,6 +470,8 @@ export const es = {
   },
   landing: {
     formTitle: "Pide tu acceso",
+    /** With self-serve sign-up on, nobody waits for an answer. */
+    selfServe: { formTitle: "Empieza gratis", submit: "Empezar gratis", cta: "Empieza gratis" },
     email: "Correo electrónico",
     business: "Nombre de tu negocio",
     website: "Sitio web de tu negocio",
@@ -492,6 +494,18 @@ export const es = {
       private_url: "Esa dirección no es un sitio público. Usa la de tu sitio en internet.",
       busy: "Recibimos muchas solicitudes hoy. Intenta de nuevo mañana.",
     },
+  },
+  welcomeEmail: {
+    subject: "Bienvenido a Pelotaz: tu primera semana en 3 pasos",
+    title: "Ya estás dentro",
+    lead: "Tu cuenta de Pelotaz está lista. Así sacas tu primera semana de publicaciones:",
+    steps: [
+      "Escribe el sitio web de tu negocio. Pelotaz lo lee y arma el perfil de tu marca.",
+      "Revisa el perfil y pide el plan de la semana.",
+      "Aprueba las publicaciones que te gusten. Copias el texto, descargas la imagen y publicas con un toque.",
+    ],
+    button: "Abrir Pelotaz",
+    help: "¿Dudas? Responde a este correo y te ayudamos.",
   },
   authEmail: {
     /** Emails sent while someone signs up, signs in or changes their password. */
@@ -550,6 +564,26 @@ export const es = {
     revoke: "Quitar acceso",
     notify: "Avisarle por correo",
     automatic: "Aprobada automáticamente",
+    funnelLink: "Ver el embudo de registro",
+    funnel: {
+      title: "Embudo de registro",
+      lead: "Cuántas personas llegaron por cada puerta y hasta dónde avanzaron. Las cuentas abiertas antes de esta página solo cuentan como solicitudes.",
+      window: (days: number) => `Últimos ${days} días`,
+      none: "Sin solicitudes en este periodo.",
+      back: "Volver a solicitudes",
+      total: "Total",
+      columns: {
+        origin: "Llegó por",
+        requests: "Solicitudes",
+        approved: "Aprobadas",
+        automatic: "Automáticas",
+        accounts: "Cuentas",
+        profiles: "Perfil listo",
+        plans: "Con plan",
+        approvedPost: "Aprobó una",
+        publishedPost: "Publicó una",
+      },
+    },
     asked: (day: string) => `Pidió acceso el ${day}`,
     origin: (source: string | null, utm: Record<string, string> | null) =>
       [source && `Llegó por /${source}`, utm && Object.entries(utm).map(([k, v]) => `${k.replace("utm_", "")}: ${v}`).join(", ")]

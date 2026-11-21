@@ -1,8 +1,10 @@
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { cache } from "react";
 import { systemDb } from "@/db/client";
 import { parseAllowlist, resolveAccess, type Access } from "./access";
 import { isNeonAuthConfigured, neonAuth } from "./neon";
+import { sendWelcomeEmail } from "@/lib/email/welcome";
+import { appUrl } from "@/lib/publishing/runtime";
 
 export interface Session {
   tenantId: string;
@@ -49,7 +51,7 @@ export const getAccess = cache(async function getAccess(): Promise<RequestAccess
       const fresh = await neonAuth().getSession({ query: { disableCookieCache: "true" } });
       if (fresh.data?.user) user = fresh.data.user;
     }
-    return resolveAccess(
+    const access = await resolveAccess(
       systemDb(),
       { userId: user.id, email: user.email, emailVerified: user.emailVerified, name: user.name },
       {
@@ -58,6 +60,18 @@ export const getAccess = cache(async function getAccess(): Promise<RequestAccess
           process.env.AUTH_ALLOW_UNVERIFIED === "true" && process.env.NODE_ENV !== "production",
       },
     );
+    if (access.kind === "ok" && access.created) {
+      // The first page of a new workspace: say hello once, after the response.
+      const { tenantId, email } = access;
+      const send = () => sendWelcomeEmail(email, tenantId, appUrl() ?? "https://www.pelotaz.com");
+      try {
+        after(send);
+      } catch {
+        // Outside a request scope `after` is unavailable; send without waiting.
+        void send();
+      }
+    }
+    return access;
   }
 
   if (process.env.AUTH_MODE === "dev" && process.env.NODE_ENV !== "production") {

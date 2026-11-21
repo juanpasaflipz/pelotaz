@@ -64,6 +64,12 @@ export const tenants = pgTable(
   {
     id: id(),
     name: text("name").notNull(),
+    /**
+     * The address that opened this workspace, lowercased. Links a workspace
+     * back to its access request for the sign-up funnel and the welcome
+     * email. Empty for workspaces older than this column.
+     */
+    ownerEmail: text("owner_email"),
     plan: text("plan").notNull().default("starter"),
     /**
      * Sum of credit_ledger.amount, maintained by a trigger on the ledger

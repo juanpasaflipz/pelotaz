@@ -26,7 +26,7 @@ function utmFromAddress(): string {
 }
 
 /** The public form that asks for a place in the private beta. `source` is the short address the page was opened at. */
-export function AccessRequestForm({ source }: { source?: "beta" | "empieza" }) {
+export function AccessRequestForm({ source, selfServe }: { source?: "beta" | "empieza"; selfServe?: boolean }) {
   const [state, action, pending] = useActionState(requestAccess, initial);
   const t = es.landing;
   const [interest, setInterest] = useState<PlanInterest | null>(null);
@@ -163,7 +163,7 @@ export function AccessRequestForm({ source }: { source?: "beta" | "empieza" }) {
 
       <div>
         <button type="submit" disabled={pending} className="button button-on-wall w-full sm:w-auto">
-          {pending ? t.submitting : t.submit}
+          {pending ? t.submitting : selfServe ? t.selfServe.submit : t.submit}
         </button>
       </div>
       <p className="text-sm">

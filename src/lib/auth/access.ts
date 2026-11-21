@@ -22,7 +22,7 @@ export interface AccessPolicy {
 }
 
 export type Access =
-  | { kind: "ok"; tenantId: string; userId: string; email: string }
+  | { kind: "ok"; tenantId: string; userId: string; email: string; /** This request opened the workspace. */ created?: true }
   | { kind: "unverified"; email: string }
   | { kind: "not_invited"; email: string };
 
@@ -83,16 +83,22 @@ export async function resolveAccess(db: Db, identity: Identity, policy: AccessPo
 
   // First visit: create the workspace. Two tabs opening at once must not
   // create two, so take a lock keyed on the user and look again inside it.
-  const tenantId = await db.transaction(async (tx) => {
+  const opened = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`provision:${identity.userId}`}))`);
     const [raced] = await find(tx);
-    if (raced) return raced.tenantId;
+    if (raced) return { tenantId: raced.tenantId, created: false };
     const [tenant] = await tx
       .insert(tenants)
-      .values({ name: identity.name?.trim() || email })
+      .values({ name: identity.name?.trim() || email, ownerEmail: email })
       .returning({ id: tenants.id });
     await tx.insert(memberships).values({ tenantId: tenant.id, userId: identity.userId, role: "owner" });
-    return tenant.id;
+    return { tenantId: tenant.id, created: true };
   });
-  return { kind: "ok", tenantId, userId: identity.userId, email };
+  return {
+    kind: "ok",
+    tenantId: opened.tenantId,
+    userId: identity.userId,
+    email,
+    ...(opened.created ? { created: true as const } : {}),
+  };
 }
