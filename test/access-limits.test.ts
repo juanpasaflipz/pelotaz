@@ -115,8 +115,9 @@ describe("resolveAccess", () => {
     const ana = person();
     const first = await resolveAccess(db, ana, open);
     const second = await resolveAccess(db, ana, open);
-    expect(first.kind).toBe("ok");
-    expect(second).toEqual(first);
+    expect(first).toMatchObject({ kind: "ok", created: true });
+    // The same workspace, and only the first visit is told it was just opened.
+    expect({ ...second, created: true }).toEqual(first);
     const rows = await db.select().from(memberships).where(eq(memberships.userId, ana.userId));
     expect(rows.map((r) => r.role)).toEqual(["owner"]);
   });

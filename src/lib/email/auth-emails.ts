@@ -28,11 +28,11 @@ export interface NeonAuthEvent {
 /** Raised when an event cannot be turned into an email; the webhook answers 400 and Neon does not retry. */
 export class UnusableEvent extends Error {}
 
-const RED = "#dc0b0b"; // --color-marca
+export const RED = "#dc0b0b"; // --color-marca
 const INK = "#1a1a1a";
-const MUTED = "#505050";
+export const MUTED = "#505050";
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
@@ -55,7 +55,7 @@ export function minutesLeft(expiresAt: unknown, from: unknown): number | null {
   return minutes >= 1 && minutes <= 24 * 60 ? minutes : null;
 }
 
-function layout(parts: { title: string; body: string }): string {
+export function layout(parts: { title: string; body: string }): string {
   return `<!doctype html>
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(parts.title)}</title></head>
