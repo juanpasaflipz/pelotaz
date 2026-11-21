@@ -64,6 +64,13 @@
       "when": 1794884095329,
       "tag": "0008_access_request_interest_and_source",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795263771395,
+      "tag": "0009_manual_publish",
+      "breakpoints": true
     }
   ]
 }

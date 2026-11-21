@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { systemDb } from "@/db/client";
 import { es } from "@/i18n/es";
-import { isAdmin, listAccessRequests, type AccessRequest } from "@/lib/access-requests";
+import { AUTO_APPROVER, isAdmin, listAccessRequests, type AccessRequest } from "@/lib/access-requests";
 import { getAccessOrSetup } from "@/lib/auth/session";
 import { appUrl } from "@/lib/publishing/runtime";
 import { decide } from "./actions";
@@ -82,6 +82,9 @@ function Group({ title, rows }: { title: string; rows: AccessRequest[] }) {
                   <p className="truncate text-sm text-tinta-suave">
                     {es.admin.origin(request.source, request.utm)}
                   </p>
+                )}
+                {request.status === "approved" && request.decidedBy === AUTO_APPROVER && (
+                  <p className="text-sm font-semibold text-ok">{es.admin.automatic}</p>
                 )}
                 {request.planInterest && (
                   <p className="text-sm font-semibold text-marca-profunda">

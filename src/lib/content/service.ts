@@ -520,6 +520,42 @@ export async function publishNow(db: Db, tenantId: string, itemId: string): Prom
   });
 }
 
+/** A link the owner pasted to a post they published themselves: http(s) only, or nothing. */
+export function cleanPermalink(raw: string | undefined): string | null {
+  const text = typeof raw === "string" ? raw.trim().slice(0, 500) : "";
+  if (!text) return null;
+  try {
+    const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The owner published an approved post themselves, by copying it. Only a post
+ * that is approved and not scheduled qualifies: a scheduled one belongs to the
+ * publisher, and marking it here could post it twice. No publication row is
+ * written, since those belong to a connected account, so the results job
+ * leaves these posts alone.
+ */
+export async function markPublishedManually(
+  db: Db,
+  tenantId: string,
+  itemId: string,
+  permalink?: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  return withTenant(db, tenantId, async (tx) => {
+    const updated = await tx
+      .update(contentItems)
+      .set({ status: "published", manualPublishedAt: now, manualPermalink: cleanPermalink(permalink) })
+      .where(and(eq(contentItems.id, itemId), eq(contentItems.status, "approved")))
+      .returning({ id: contentItems.id });
+    return updated.length > 0;
+  });
+}
+
 export type ItemError = "not_found" | "not_editable" | "empty" | "daily_limit" | "busy";
 
 /**

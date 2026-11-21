@@ -2,6 +2,7 @@
 
 import { useId, useState, useTransition } from "react";
 import {
+  markPublishedAction,
   publishNowAction,
   rewriteAction,
   saveDraftAction,
@@ -46,6 +47,8 @@ export interface PostCardProps {
     /** HH:MM to preselect. */
     time: string;
     permalink: string | null;
+    /** The owner published it by hand, so no results come from the channel. */
+    manual: boolean;
     /** The last attempt failed with this code. */
     error: string | null;
     results: {
@@ -59,6 +62,11 @@ export interface PostCardProps {
     } | null;
   };
 }
+
+const CHANNEL_HOME: Record<string, string> = {
+  instagram: "https://www.instagram.com/",
+  facebook: "https://www.facebook.com/",
+};
 
 const flagText = (flag: ReviewFlag) => {
   const fixed = es.flags as unknown as Record<string, string>;
@@ -93,6 +101,8 @@ export function PostCard(props: PostCardProps) {
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [copied, setCopied] = useState(false);
+  const [marking, setMarking] = useState(false);
+  const [link, setLink] = useState("");
 
   const run = (action: () => Promise<ItemActionResult>, after?: () => void) =>
     startTransition(async () => {
@@ -356,7 +366,12 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
-      {published && <Results results={props.publishing.results} />}
+      {published &&
+        (props.publishing.manual ? (
+          <p className="mt-4 text-sm font-semibold text-ok">{p.doneBy}</p>
+        ) : (
+          <Results results={props.publishing.results} />
+        ))}
 
       {!working && !rewriting && (published || sending) && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -381,13 +396,81 @@ export function PostCard(props: PostCardProps) {
         </div>
       )}
 
-      {!working && !rewriting && !rejecting && !published && !sending && (
+      {!working && marking && (
+        <div className="mt-4">
+          <label htmlFor={`${id}-link`} className="text-sm font-semibold">
+            {p.doneLabel}
+          </label>
+          <input
+            id={`${id}-link`}
+            className="field mt-1"
+            value={link}
+            maxLength={500}
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder={p.donePlaceholder}
+            onChange={(event) => setLink(event.target.value)}
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              className="button button-primary"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await markPublishedAction(itemId, link);
+                  setError(result.ok ? null : p.doneFailed);
+                  if (result.ok) setMarking(false);
+                })
+              }
+            >
+              {p.doneConfirm}
+            </button>
+            <button type="button" className="button button-quiet" onClick={() => setMarking(false)}>
+              {t.cancel}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!working && !rewriting && !rejecting && !marking && !published && !sending && (
         <>
           {scheduled && props.publishing.scheduledLabel && (
             <p className="mt-4 font-semibold text-ok">{p.scheduled(props.publishing.scheduledLabel)}</p>
           )}
           {status === "approved" && !canSchedule && (
             <p className="mt-4 text-sm text-tinta-suave">{connected && needsPhoto ? p.needsPhoto : p.manual}</p>
+          )}
+          {status === "approved" && !canSchedule && !dirty && draft && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" className="button button-primary" onClick={copyText}>
+                {copied ? t.copied : t.copyText}
+              </button>
+              {draft.assetId && (
+                <a
+                  href={`/api/media/${draft.assetId}?dl=1${props.format === "story" ? "&f=story" : ""}`}
+                  download
+                  className="button button-quiet"
+                >
+                  {p.download}
+                </a>
+              )}
+              {CHANNEL_HOME[props.channel] && (
+                <a
+                  href={CHANNEL_HOME[props.channel]}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="button button-quiet"
+                >
+                  {p.open(t.channels[props.channel] ?? props.channel)}
+                </a>
+              )}
+              <button type="button" className="button button-quiet" disabled={pending} onClick={() => setMarking(true)}>
+                {p.done}
+              </button>
+            </div>
           )}
           {status === "approved" && props.publishing.error && (
             <p className="mt-2 text-sm font-medium text-chapa" role="alert">
@@ -432,7 +515,7 @@ export function PostCard(props: PostCardProps) {
                 {t.save}
               </button>
             )}
-            {draft && (
+            {draft && !(status === "approved" && !canSchedule && !dirty) && (
               <button type="button" className="button button-quiet" onClick={copyText}>
                 {copied ? t.copied : t.copyText}
               </button>

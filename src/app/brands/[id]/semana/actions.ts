@@ -7,6 +7,7 @@ import { systemDb } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import {
   contentLimitsFromEnv,
+  markPublishedManually,
   requestPlan,
   publishNow,
   requestRewrite,
@@ -169,6 +170,20 @@ export async function publishNowAction(itemId: string): Promise<{ ok: boolean }>
   }
   refresh();
   return { ok: moved };
+}
+
+/** "Ya lo publiqué": the owner copied an approved post and published it themselves. */
+export async function markPublishedAction(itemId: string, permalink?: string): Promise<{ ok: boolean }> {
+  const session = await requireSession();
+  if (!isUuid(itemId)) return { ok: false };
+  const ok = await markPublishedManually(
+    systemDb(),
+    session.tenantId,
+    itemId,
+    typeof permalink === "string" ? permalink : undefined,
+  );
+  refresh();
+  return { ok };
 }
 
 export async function chooseMetaPageAction(brandId: string, connectionId: string): Promise<{ ok: boolean }> {

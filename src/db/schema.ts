@@ -305,6 +305,10 @@ export const contentItems = pgTable(
      * planner reads recent ones, so a rejection shapes the next weeks too.
      */
     decisionNote: text("decision_note"),
+    /** Set when the owner published the post by hand ("Ya lo publiqué"), not through a connected account. */
+    manualPublishedAt: timestamp("manual_published_at", { withTimezone: true }),
+    /** The link the owner gave to that post, when they gave one. */
+    manualPermalink: text("manual_permalink"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

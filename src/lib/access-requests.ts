@@ -1,4 +1,4 @@
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { accessRequests } from "@/db/schema";
 import type { Db } from "@/db/tenant";
@@ -19,8 +19,28 @@ export type AccessRequestStatus = AccessRequest["status"];
 export type SubmitError = "invalid_email" | "missing_business" | "invalid_url" | "private_url" | "busy";
 
 export type SubmitResult =
-  | { ok: true; email: string; created: boolean }
+  | { ok: true; email: string; created: boolean; approved: boolean }
   | { ok: false; error: SubmitError };
+
+/** Recorded as `decided_by` when the request was approved by the daily quota, not by a person. */
+export const AUTO_APPROVER = "auto";
+
+/**
+ * Self-serve sign-up: `SELF_SERVE_SIGNUP=on` approves new requests without an
+ * admin, up to `SIGNUP_DAILY_CAP` a day. Anything else keeps every request
+ * waiting for a decision, as before. Turning it off does not undo approvals
+ * already given.
+ */
+export function selfServeFromEnv(): { enabled: boolean; dailyCap: number } {
+  const raw = Number(process.env.SIGNUP_DAILY_CAP);
+  return {
+    enabled: (process.env.SELF_SERVE_SIGNUP ?? "").trim().toLowerCase() === "on",
+    dailyCap: Number.isInteger(raw) && raw >= 0 ? raw : 50,
+  };
+}
+
+/** The quota's day is Mexico City's, where the first users are; it has had no daylight saving since 2022. */
+const startOfQuotaDay = sql`date_trunc('day', now() at time zone 'America/Mexico_City') at time zone 'America/Mexico_City'`;
 
 /** Ceiling on new requests per 24 hours, so a script cannot fill the table. */
 export function accessRequestsPerDay(): number {
@@ -48,7 +68,7 @@ export async function submitAccessRequest(
     source?: string;
     utm?: unknown;
   },
-  options: { perDay?: number } = {},
+  options: { perDay?: number; selfServe?: { enabled: boolean; dailyCap: number } } = {},
 ): Promise<SubmitResult> {
   const email = emailSchema.safeParse(input.email.trim().toLowerCase());
   if (!email.success) return { ok: false, error: "invalid_email" };
@@ -99,7 +119,8 @@ export async function submitAccessRequest(
           .set({ ...interest, ...origin })
           .where(eq(accessRequests.id, existing.id));
       }
-      return { ok: true, email: email.data, created: false } as const;
+      // Never says whether a known address was approved: only a brand-new request can be let straight in.
+      return { ok: true, email: email.data, created: false, approved: false } as const;
     }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -109,8 +130,25 @@ export async function submitAccessRequest(
       .where(gte(accessRequests.createdAt, since));
     if (recent >= perDay) return { ok: false, error: "busy" } as const;
 
-    await tx.insert(accessRequests).values({ email: email.data, businessName, website, ...interest, source, utm });
-    return { ok: true, email: email.data, created: true } as const;
+    // Self-serve: let this one in now if today's quota has room. Counted inside the lock above.
+    let approved = false;
+    if (options.selfServe?.enabled) {
+      const [{ today }] = await tx
+        .select({ today: sql<number>`count(*)::int` })
+        .from(accessRequests)
+        .where(and(eq(accessRequests.decidedBy, AUTO_APPROVER), gte(accessRequests.decidedAt, startOfQuotaDay)));
+      approved = today < options.selfServe.dailyCap;
+    }
+    await tx.insert(accessRequests).values({
+      email: email.data,
+      businessName,
+      website,
+      ...interest,
+      source,
+      utm,
+      ...(approved ? { status: "approved" as const, decidedAt: new Date(), decidedBy: AUTO_APPROVER } : {}),
+    });
+    return { ok: true, email: email.data, created: true, approved } as const;
   });
 }
 

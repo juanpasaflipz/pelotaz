@@ -197,7 +197,8 @@ async function WeekView({ params, searchParams }: Pick<PageProps<"/brands/[id]/s
                   connected: connectedChannels.has(item.channel),
                   scheduledLabel: item.scheduledAt ? whenLabel(item.scheduledAt) : null,
                   time: item.scheduledAt ? utcToLocalTime(item.scheduledAt, brand.country) : DEFAULT_PUBLISH_TIME,
-                  permalink: published.get(item.id)?.permalink ?? null,
+                  permalink: published.get(item.id)?.permalink ?? item.manualPermalink,
+                  manual: item.manualPublishedAt !== null,
                   error: published.get(item.id)?.error ?? null,
                   results: results.get(item.id) ?? null,
                 }}
