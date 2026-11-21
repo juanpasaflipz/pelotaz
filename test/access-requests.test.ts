@@ -44,7 +44,7 @@ const closed = { allowlist: ["juan@pelotaz.test"], allowUnverified: false };
 describe("asking for access", () => {
   it("saves a request as pending, with the address lowercased and the site normalised", async () => {
     const result = await ask("  Ana@Taqueria.MX ");
-    expect(result).toEqual({ ok: true, email: "ana@taqueria.mx", created: true });
+    expect(result).toEqual({ ok: true, email: "ana@taqueria.mx", created: true, approved: false });
     const row = await rowFor("ana@taqueria.mx");
     expect(row).toMatchObject({ status: "pending", businessName: "Tacos Ana", website: "https://tacosana.mx/" });
   });

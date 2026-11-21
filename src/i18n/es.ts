@@ -481,6 +481,9 @@ export const es = {
     sentTitle: "Recibimos tu solicitud",
     sent: (email: string) =>
       `Te escribimos a ${email} cuando tu acceso esté listo. No necesitas hacer nada más por ahora.`,
+    readyTitle: "Tu acceso está listo",
+    ready: (email: string) => `Crea tu cuenta con ${email} y empieza ahora. Es gratis.`,
+    readyCta: "Crear mi cuenta",
     haveAccess: "¿Ya tienes acceso?",
     errors: {
       invalid_email: "Ese correo no se ve bien escrito.",
@@ -546,6 +549,7 @@ export const es = {
     reject: "Rechazar",
     revoke: "Quitar acceso",
     notify: "Avisarle por correo",
+    automatic: "Aprobada automáticamente",
     asked: (day: string) => `Pidió acceso el ${day}`,
     origin: (source: string | null, utm: Record<string, string> | null) =>
       [source && `Llegó por /${source}`, utm && Object.entries(utm).map(([k, v]) => `${k.replace("utm_", "")}: ${v}`).join(", ")]
@@ -821,6 +825,14 @@ export const es = {
     },
     publishing: "Publicando",
     manual: "Aprobada. Cópiala y publícala tú, o conecta tus cuentas para que salga sola.",
+    download: "Descargar imagen",
+    open: (channel: string) => `Abrir ${channel}`,
+    done: "Ya la publiqué",
+    doneLabel: "Enlace de la publicación (opcional)",
+    donePlaceholder: "instagram.com/p/...",
+    doneConfirm: "Marcar como publicada",
+    doneBy: "Publicada por ti.",
+    doneFailed: "No pudimos marcarla. Recarga la página e intenta de nuevo.",
     needsPhoto: "Instagram necesita una foto para publicar.",
     errors: {
       reconnect: "No se pudo publicar: la conexión con Facebook venció. Vuelve a conectar y aprueba de nuevo.",

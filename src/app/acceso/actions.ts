@@ -1,12 +1,14 @@
 "use server";
 
 import { systemDb } from "@/db/client";
-import { submitAccessRequest, type SubmitError } from "@/lib/access-requests";
+import { selfServeFromEnv, submitAccessRequest, type SubmitError } from "@/lib/access-requests";
 
 export interface RequestAccessState {
   error: SubmitError | null;
   /** Set once the request is recorded. */
   sentTo: string | null;
+  /** Self-serve let this request straight in: the person can create their account now. */
+  approved?: boolean;
   email: string;
   businessName: string;
   website: string;
@@ -43,7 +45,7 @@ export async function requestAccess(
   // answer as a real request, and nothing is saved.
   if (field(formData, "company_fax", 200)) return { error: null, sentTo: email, ...typed };
 
-  const result = await submitAccessRequest(systemDb(), { ...typed, ...interest });
+  const result = await submitAccessRequest(systemDb(), { ...typed, ...interest }, { selfServe: selfServeFromEnv() });
   if (!result.ok) return { error: result.error, sentTo: null, ...typed };
-  return { error: null, sentTo: result.email, ...typed };
+  return { error: null, sentTo: result.email, approved: result.approved, ...typed };
 }

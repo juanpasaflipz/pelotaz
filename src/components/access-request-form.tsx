@@ -45,6 +45,21 @@ export function AccessRequestForm({ source }: { source?: "beta" | "empieza" }) {
     if (state.sentTo) trackEvent("form_sent", interest ? { plan: interest.plan, billing: interest.billing } : {});
   }, [state.sentTo, interest]);
 
+  if (state.sentTo && state.approved) {
+    return (
+      <div role="status" className="mt-6 max-w-md rounded bg-raya px-5 py-4 text-tinta">
+        <p className="display flex items-center gap-2 text-2xl">
+          <BallMark className="size-5" />
+          {t.readyTitle}
+        </p>
+        <p className="mt-2">{t.ready(state.sentTo)}</p>
+        <Link href="/auth/sign-up" className="button button-primary mt-4 inline-block">
+          {t.readyCta}
+        </Link>
+      </div>
+    );
+  }
+
   if (state.sentTo) {
     return (
       <div role="status" className="mt-6 max-w-md rounded bg-raya px-5 py-4 text-tinta">

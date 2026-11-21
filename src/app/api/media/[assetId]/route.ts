@@ -20,7 +20,10 @@ const MAX_WIDTH = 1440;
 export async function GET(request: Request, context: RouteContext<"/api/media/[assetId]">) {
   const { assetId } = await context.params;
   if (!isUuid(assetId)) return new Response("Not found", { status: 404 });
-  const format = new URL(request.url).searchParams.get("f") === "story" ? "story" : "feed";
+  const query = new URL(request.url).searchParams;
+  const format = query.get("f") === "story" ? "story" : "feed";
+  // "Descargar imagen": the same JPEG, saved to the owner's phone instead of opened.
+  const download = query.get("dl") === "1";
 
   // Cross-tenant by nature (Meta does not sign in); only site photos are served.
   const [asset] = await systemDb().select().from(assets).where(eq(assets.id, assetId));
@@ -50,7 +53,11 @@ export async function GET(request: Request, context: RouteContext<"/api/media/[a
     }
     const jpeg = await pipeline.flatten({ background: "#ffffff" }).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
     return new Response(new Uint8Array(jpeg), {
-      headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" },
+      headers: {
+        "content-type": "image/jpeg",
+        "cache-control": "public, max-age=86400",
+        ...(download ? { "content-disposition": `attachment; filename="pelotaz-${format}-${assetId.slice(0, 8)}.jpg"` } : {}),
+      },
     });
   } catch {
     return new Response("Unreadable image", { status: 422 });
